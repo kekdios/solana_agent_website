@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>API Reference — Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        min-height: 100vh;
+        background: #0d0d0f;
+        color: #e2e8f0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      body { display: flex; height: 100vh; overflow: hidden; }
+      .site-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 14rem;
+        background: #121214;
+        border-right: 1px solid #1e1e24;
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+      }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem;
+        color: #94a3b8; text-decoration: none;
+        transition: background 0.15s, color 0.15s;
+      }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-version { margin-top: auto; padding: 0.75rem 0.75rem 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+      .api-content { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; text-align: left; }
+      .api-content h1 { font-size: 1.5rem; font-weight: 600; color: #e2e8f0; margin: 0 0 0.5rem; }
+      .api-content .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 2rem; }
+      .api-content h2 { font-size: 1.125rem; font-weight: 600; color: #e2e8f0; margin: 2rem 0 0.75rem; border-bottom: 1px solid #2a2a30; padding-bottom: 0.35rem; }
+      .api-content h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 1.25rem 0 0.5rem; }
+      .api-content p, .api-content li { font-size: 0.9375rem; color: #cbd5e1; margin: 0 0 0.5rem; }
+      .api-content ul { margin: 0 0 1rem; padding-left: 1.25rem; }
+      .api-content table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 0.5rem 0 1rem; }
+      .api-content th, .api-content td { text-align: left; padding: 0.35rem 0.5rem; border: 1px solid #2a2a30; }
+      .api-content th { background: #121214; color: #94a3b8; font-weight: 600; }
+      .api-content td { color: #cbd5e1; }
+      .api-content code, .api-content pre { font-family: ui-monospace, monospace; font-size: 0.8125rem; }
+      .api-content code { background: #1e1e24; padding: 0.15rem 0.35rem; border-radius: 0.25rem; color: #34d399; }
+      .api-content pre {
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 0.5rem 0 1rem;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .api-content pre code { background: none; padding: 0; color: inherit; }
+      .api-content .endpoint { font-weight: 600; color: #34d399; }
+      .api-content .method { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+      .api-content .method.get { background: #34d39922; color: #34d399; }
+      .api-content .method.post { background: #3b82f622; color: #60a5fa; }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="explorer.html">Token Explorer</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html" class="active">API</a>
+      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <script>
+      (function() {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+    </script>
+    <div class="site-main">
+      <div class="api-content">
+        <h1>API Reference</h1>
+        <p class="tagline">HTTP APIs available to agents and the Proof of Reserves / Token Explorer frontends. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
+
+        <p><strong>Machine-readable schema:</strong> <a href="/api/openapi.json" style="color:#34d399;">GET /api/openapi.json</a> — OpenAPI 3.0 spec (endpoints, request/response schemas, error codes). Use this for agent tooling and codegen.</p>
+
+        <div class="agent-actions" style="margin:1.5rem 0; padding:1rem 1.25rem; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.3); border-radius:0.75rem;">
+          <p style="margin:0 0 0.5rem; font-weight:600; color:#e2e8f0;">For agents: two main actions</p>
+          <ol style="margin:0; padding-left:1.25rem; color:#cbd5e1;">
+            <li><strong>Swap (SOL → BTC):</strong> <code>GET /api/swap/min</code> and <code>GET /api/swap/estimate</code>, then <code>POST /api/swap/create</code>. You get the tx id and can disconnect; poll <code>GET /api/swap/status/:id</code> only if you need completion status.</li>
+            <li><strong>Create your own token:</strong> <code>POST /api/invoices</code> with token details → receive invoice (fee in SOL) → pay to treasury → <code>POST /api/invoices/confirm</code> with <code>invoice_id</code> and <code>tx_signature</code> → we create the SPL token and add it to the listing.</li>
+          </ol>
+        </div>
+
+        <h2>Deterministic flows (step-by-step)</h2>
+        <p>Agents should follow these state transitions; poll status endpoints instead of guessing.</p>
+
+        <h3>Flow 1: Token creation</h3>
+        <table style="width:100%; max-width:42rem;">
+          <tr><th>Step</th><th>Action</th></tr>
+          <tr><td>1</td><td><code>POST /api/invoices</code> — body: <code>{ "name", "symbol", "creator_address" }</code> (optional: decimals, supply, description, revoke_*).</td></tr>
+          <tr><td>2</td><td>Response: <code>status: "pending_payment"</code>, <code>invoice_id</code>, <code>address</code> (treasury), <code>amount</code> (SOL), <code>currency: "SOL"</code>.</td></tr>
+          <tr><td>3</td><td>Send <code>amount</code> SOL to <code>address</code> (user's wallet signs the tx).</td></tr>
+          <tr><td>4</td><td><code>POST /api/invoices/confirm</code> — body: <code>{ "invoice_id", "tx_signature" }</code>. Idempotent: already completed returns same success.</td></tr>
+          <tr><td>5</td><td>Response: <code>status: "completed"</code>, <code>token_id</code>, <code>mint_address</code>. Optional: <code>GET /api/tokens/{token_id}</code>.</td></tr>
+        </table>
+        <pre><code># Step 1 – create invoice
+curl -s -X POST https://www.solanaagent.app/api/invoices \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My Token","symbol":"MTK","creator_address":"YOUR_SOL_ADDRESS"}'
+
+# Step 4 – confirm (after paying amount SOL to address)
+curl -s -X POST https://www.solanaagent.app/api/invoices/confirm \
+  -H "Content-Type: application/json" \
+  -d '{"invoice_id":"UUID-FROM-STEP-1","tx_signature":"SOLANA_TX_SIG"}'</code></pre>
+
+        <h3>Flow 2: Swap SOL → BTC</h3>
+        <table style="width:100%; max-width:42rem;">
+          <tr><th>Step</th><th>Action</th></tr>
+          <tr><td>1</td><td><code>GET /api/swap/min</code> — returns <code>minAmountSol</code>, <code>balanceSol</code>.</td></tr>
+          <tr><td>2</td><td><code>GET /api/swap/estimate?amountSol=X</code> — returns <code>estimatedBtcSats</code>.</td></tr>
+          <tr><td>3</td><td><code>POST /api/swap/create</code> — body: <code>{ "amountSol": X }</code>. Returns immediately with <code>initiated: true</code>, <code>id</code> (Solana tx signature).</td></tr>
+          <tr><td>4</td><td>(Optional) <code>GET /api/swap/status/{id}</code> — <code>status</code>: <code>waiting</code> | <code>finished</code> | <code>failed</code>.</td></tr>
+        </table>
+        <pre><code># Steps 1–2
+curl -s "https://www.solanaagent.app/api/swap/min"
+curl -s "https://www.solanaagent.app/api/swap/estimate?amountSol=0.05"
+
+# Step 3
+curl -s -X POST https://www.solanaagent.app/api/swap/create \
+  -H "Content-Type: application/json" \
+  -d '{"amountSol":0.05}'</code></pre>
+
+        <h3>Errors (machine-usable)</h3>
+        <p>All errors return JSON: <code>{ "error_code", "error", "action?" }</code>. Example: <code>{ "error_code": "INSUFFICIENT_BALANCE", "error": "Insufficient SOL balance (including fee reserve)", "action": "top_up_wallet" }</code>. Safe to retry on network issues; <code>POST /api/invoices/confirm</code> is idempotent for completed invoices.</p>
+
+        <h2>1. Base URL</h2>
+        <p>When calling from a browser on this site, use relative paths (e.g. <code>/api/reserves</code>). From an external agent or script, use the full origin (e.g. <code>https://www.solanaagent.app/api/reserves</code>).</p>
+        <p>No authentication is required for the documented read and create endpoints; they are public.</p>
+
+        <h2>2. Reserves &amp; proof</h2>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/reserves</span></h3>
+        <p>Returns Bitcoin and Solana reserve addresses and balances.</p>
+        <p><strong>Request:</strong> No parameters.</p>
+        <p><strong>Response (200):</strong></p>
+        <table>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+          <tr><td><code>bitcoin.address</code></td><td>string \| null</td><td>Reserve BTC address</td></tr>
+          <tr><td><code>bitcoin.balanceBtc</code></td><td>number \| null</td><td>Balance in BTC</td></tr>
+          <tr><td><code>bitcoin.balanceSat</code></td><td>number \| null</td><td>Balance in satoshis</td></tr>
+          <tr><td><code>solana.address</code></td><td>string \| null</td><td>Reserve SOL address</td></tr>
+          <tr><td><code>solana.balanceSol</code></td><td>number \| null</td><td>Balance in SOL</td></tr>
+        </table>
+        <pre><code>curl "https://www.solanaagent.app/api/reserves"</code></pre>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/proof</span></h3>
+        <p>Returns a dated message and Bitcoin/Solana signatures proving ownership of the reserve keys.</p>
+        <p><strong>Response (200):</strong> <code>message</code>, <code>timestamp</code>, <code>bitcoin.address</code>, <code>bitcoin.signature</code>, <code>solana.address</code>, <code>solana.signature</code>.</p>
+
+        <h2>3. Transactions</h2>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/transactions/bitcoin</span></h3>
+        <p>Recent Bitcoin transactions for the reserve address (most recent first, up to 100).</p>
+        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "txid", "blockTime", "blockHeight" }, ... ] }</code></p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/transactions/solana</span></h3>
+        <p>Recent Solana transactions for the reserve address.</p>
+        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "blockTime", "err" }, ... ] }</code></p>
+
+        <h2>4. ABSR (Arbitrage / reserve summary)</h2>
+        <p>ABSR (Agent Bitcoin Strategic Reserve) is 1:1 with the Bitcoin reserve: one satoshi in the reserve = one ABSR. A daily job mints ABSR when the reserve balance exceeds the on-chain supply.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/arbitrage/summary</span></h3>
+        <p>BTC/SOL prices (Hyperliquid) and ABSR metrics: <code>absrSupplySats</code> (reserve balance in sats), <code>absrSupplyUsd</code>, <code>absrTokenSupply</code> (on-chain token supply).</p>
+        <p><strong>Response (200):</strong> <code>btcPriceUsd</code>, <code>solPriceUsd</code>, <code>absrSupplySats</code>, <code>absrSupplyUsd</code>, <code>absrTokenSupply</code>.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/arbitrage/transactions</span></h3>
+        <p>ABSR-related transactions from the database (most recent first, up to 100). <code>type</code> is <code>issue</code> when a reserve SOL→BTC swap completes, or <code>mint</code> when the daily reserve sync mints ABSR to match the Bitcoin reserve balance. Requires <code>DATABASE_URL</code>; returns empty list if DB is not configured.</p>
+        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "txId", "type", "amountSats", "amountUsd", "blockTime" }, ... ] }</code>. <code>signature</code> may be null for older issue rows; mint rows include the Solana tx signature.</p>
+
+        <h2>5. Swap (reserve SOL → BTC only, via LI.FI)</h2>
+        <p>Only <strong>SOL → BTC</strong> is supported. The server uses <a href="https://li.fi" target="_blank" rel="noopener noreferrer">LI.FI</a> to get a quote, sign and submit the Solana transaction, and track status. BTC is sent to the reserve Bitcoin address.</p>
+        <p><strong>Confirmation time:</strong> Bitcoin settlement can take from several minutes up to a few hours depending on network congestion.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/exchanges/transactions</span></h3>
+        <p>Reserve SOL→BTC swap history (from Postgres).</p>
+        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "txId", "solAmount", "btcSats", "blockTime" }, ... ] }</code></p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/swap/min</span></h3>
+        <p>Minimum SOL amount and current reserve SOL balance for SOL→BTC swap.</p>
+        <p><strong>Response (200):</strong> <code>{ "minAmountSol", "balanceSol" }</code></p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/swap/estimate</span></h3>
+        <p>Estimated BTC (sats) for a given SOL amount (from LI.FI quote).</p>
+        <p><strong>Query:</strong> <code>amountSol</code> (positive number).</p>
+        <p><strong>Response (200):</strong> <code>{ "amountSol", "estimatedBtcSats" }</code></p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/swap/create</span></h3>
+        <p>Create a reserve SOL→BTC swap: server gets a LI.FI quote, signs the Solana transaction with the reserve key, and submits it. BTC is received at the reserve BTC address.</p>
+        <p><strong>Body:</strong> <code>{ "amountSol": number }</code> (positive).</p>
+        <p><strong>Response (200):</strong> Returned immediately after the swap is initiated (Solana tx submitted). The agent receives the tx id (<code>id</code> / <code>solanaSignature</code>) and can disconnect; there is no need to wait for BTC confirmation (which can take minutes to hours). Poll <code>GET /api/swap/status/:id</code> only if completion status is needed. Fields: <code>initiated: true</code>, <code>id</code>, <code>amountSol</code>, <code>expectedBtcSats</code>, <code>solanaSignature</code>, <code>status</code>, <code>statusUrl</code>, <code>message</code>.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/swap/status/:id</span></h3>
+        <p>Poll LI.FI transfer status. <code>:id</code> is the Solana transaction signature.</p>
+        <p><strong>Response (200):</strong> <code>{ "id", "status", "amountSol", "btcSats" }</code>. <code>status</code>: <code>waiting</code>, <code>finished</code>, or <code>failed</code>.</p>
+
+        <h2>6. Invoices (agent token creation)</h2>
+        <p>Agent submits token details → receives an invoice (fee in SOL). After paying the invoice to the treasury, the server creates the SPL token and adds it to the listing.</p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/invoices</span></h3>
+        <p>Create an invoice for token creation.</p>
+        <p><strong>Body:</strong></p>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th></tr>
+          <tr><td><code>name</code></td><td>string</td><td>Yes</td></tr>
+          <tr><td><code>symbol</code></td><td>string</td><td>Yes</td></tr>
+          <tr><td><code>decimals</code></td><td>number (0–9)</td><td>No (default 9)</td></tr>
+          <tr><td><code>supply</code></td><td>string</td><td>No (default "0")</td></tr>
+          <tr><td><code>description</code></td><td>string</td><td>No</td></tr>
+          <tr><td><code>creator_address</code></td><td>string</td><td>Yes (SOL address to receive minted supply)</td></tr>
+          <tr><td><code>revoke_freeze_authority</code></td><td>boolean</td><td>No</td></tr>
+          <tr><td><code>revoke_mint_authority</code></td><td>boolean</td><td>No</td></tr>
+          <tr><td><code>revoke_update_authority</code></td><td>boolean</td><td>No</td></tr>
+          <tr><td><code>metaplex_metadata</code></td><td>boolean</td><td>No</td></tr>
+        </table>
+        <p><strong>Response (200):</strong> <code>invoice_id</code>, <code>treasury_address</code>, <code>fee_sol</code>, <code>fee_lamports</code>, <code>message</code>, <code>created_at</code>.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/invoices/:id</span></h3>
+        <p>Get invoice by ID (UUID).</p>
+        <p><strong>Response (200):</strong> Full invoice fields including <code>status</code> (<code>pending</code>, <code>completed</code>), <code>payment_tx_signature</code>, <code>token_id</code>, <code>paid_at</code>, <code>completed_at</code>.</p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/invoices/confirm</span></h3>
+        <p>Confirm payment: provide invoice ID and the Solana transaction signature that sent <code>fee_sol</code> to the treasury. On success, the server creates the token and lists it.</p>
+        <p><strong>Body:</strong> <code>{ "invoice_id": string, "tx_signature": string }</code> (or <code>invoiceId</code>, <code>txSignature</code>).</p>
+        <p><strong>Response (200):</strong> <code>{ "ok": true, "status": "completed", "token_id", "mint_address", "message" }</code>.</p>
+
+        <h2>7. Tokens &amp; listings</h2>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/tokens</span></h3>
+        <p>List tokens. Optional query: <code>creator</code> (SOL address) to filter by creator.</p>
+        <p><strong>Response (200):</strong> <code>{ "tokens": [ { "id", "name", "symbol", "decimals", "supply", "mint_address", "creator_address", ... }, ... ] }</code></p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/tokens</span></h3>
+        <p>Create a token record in the database (metadata only; no on-chain mint). Body: <code>name</code>, <code>symbol</code> (required); <code>decimals</code>, <code>supply</code>, <code>description</code>, <code>creator_address</code>, <code>mint_address</code>, <code>revoke_*</code>, <code>metaplex_metadata</code> (optional). Returns the created token. Requires <code>DATABASE_URL</code>.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/tokens/:id</span></h3>
+        <p>Get a single token by numeric ID.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings/search</span></h3>
+        <p>Search listed tokens. Query: <code>q</code> (search string, name/symbol).</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings</span></h3>
+        <p>Get listing(s). Query: <code>token_id</code> (optional).</p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/listings/request</span></h3>
+        <p>Request a listing (e.g. for an existing token). Body includes <code>token_id</code> and other fields; response returns fee and treasury address for payment.</p>
+
+        <h3><span class="method post">POST</span> <span class="endpoint">/api/listings/confirm</span></h3>
+        <p>Confirm listing payment (tx signature). On success the token is listed.</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings/ensure-absr</span></h3>
+        <p>Internal: ensure the ABSR token is registered in the tokens table and listed. Returns <code>{ "ok": true }</code> or <code>{ "ok": false, "error": "..." }</code>. Used by the server on startup and by listing search.</p>
+
+        <h2>8. Explorer</h2>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/explorer/treasury</span></h3>
+        <p>Returns treasury SOL address and optional metadata for the Token Explorer.</p>
+
+        <h2>9. MCP server (agent tools)</h2>
+        <p>An <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">MCP</a> server exposes the same API as tools so agents can discover and call them without hardcoding HTTP. Run <code>npm run mcp</code> (or <code>node mcp-server.cjs</code>) for stdio transport. Set <code>API_BASE_URL</code> to point at a different origin (default: <code>https://www.solanaagent.app</code>).</p>
+        <p><strong>Tools:</strong> <code>get_reserves</code>, <code>swap_min</code>, <code>swap_estimate</code>, <code>swap_create</code>, <code>swap_status</code>, <code>create_token_invoice</code>, <code>get_invoice</code>, <code>confirm_invoice</code>, <code>get_token</code>. All take typed inputs and return JSON.</p>
+        <p><strong>Cursor:</strong> Add to MCP settings (e.g. <code>~/.cursor/mcp.json</code>) to use from Cursor: <code>{ "mcpServers": { "solana-agent-website": { "command": "node", "args": ["/path/to/website/mcp-server.cjs"], "env": { "API_BASE_URL": "https://www.solanaagent.app" } } } }</code></p>
+
+        <h2>10. Errors</h2>
+        <p>Errors are returned with appropriate HTTP status (400, 404, 502, 503) and a JSON body with <code>error_code</code>, <code>error</code>, and optional <code>action</code> (see deterministic flows section).</p>
+      </div>
+    </div>
+  </body>
+</html>

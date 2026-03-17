@@ -1,0 +1,28 @@
+{
+  "name": "solana-agent-website-api",
+  "version": "1.0.0",
+  "description": "Proof-of-reserves API for Solana Agent website",
+  "type": "commonjs",
+  "main": "api-server.cjs",
+  "scripts": {
+    "start": "node api-server.cjs",
+    "test": "node test-api-no-tx.js && node test-pages.js",
+    "test:api": "node test-api-no-tx.js",
+    "test:pages": "node test-pages.js",
+    "test:arbitrage-db": "node test-arbitrage-db.js",
+    "test:swap": "node test-swap-sol-to-btc.js",
+    "test:lifi": "node test-lifi-sol-to-btc.js",
+    "mcp": "node mcp-server.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.4",
+    "bitcoinjs-lib": "^5.2.0",
+    "bitcoinjs-message": "^2.2.0",
+    "bs58": "^6.0.0",
+    "pg": "^8.11.3",
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.3.6"
+  }
+}

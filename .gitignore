@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Local env (secrets)
+.env
+
+# Dependencies
+node_modules/
+
+# Optional: temp files from compare script
+.remote_list.txt
+
+# Logs / editor
+*.log
+.cursor/
