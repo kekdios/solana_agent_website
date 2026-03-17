@@ -43,6 +43,23 @@ From this directory:
 | `npm test` | Run API + page tests |
 | `npm run test:lifi` | Test SOL→BTC swap (small amount) |
 
+## GitHub
+
+This project is a Git repository. To push to GitHub:
+
+1. **Create a new repository** on [GitHub](https://github.com/new) (do not add a README or .gitignore; the repo already has them).
+
+2. **Add the remote and push:**
+   ```bash
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+   Or with SSH: `git remote add origin git@github.com:YOUR_USERNAME/YOUR_REPO_NAME.git`
+
+3. **Or use GitHub CLI** (if installed): `gh repo create YOUR_REPO_NAME --private --source=. --push`
+
 ## License
 
 MIT
