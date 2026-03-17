@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Solana Agent Website API",
-    "description": "Agent-native API for swap (SOL→BTC) and token creation. All responses are JSON. Use deterministic flows below; poll status endpoints instead of guessing.",
+    "description": "Agent-native API for swap (SOL→BTC) and token creation. All responses are JSON. Quickstart: GET openapi.json → choose flow (swap or token) → follow deterministic steps → poll status if needed. Rate limits: LI.FI ~200 req/2h; swap min from GET /api/swap/min. Poll status endpoints instead of guessing.",
     "version": "1.0.0"
   },
   "servers": [{ "url": "https://www.solanaagent.app", "description": "Production" }],
@@ -60,6 +60,7 @@
     "/api/swap/create": {
       "post": {
         "summary": "Create SOL→BTC swap (initiated immediately)",
+        "description": "Funds from reserve Solana wallet (server signs). BTC is sent to the reserve Bitcoin address. No user signature. Custodial reserve operation.",
         "operationId": "swapCreate",
         "requestBody": {
           "required": true,

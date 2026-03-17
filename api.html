@@ -96,6 +96,8 @@
         <h1>API Reference</h1>
         <p class="tagline">HTTP APIs available to agents and the Proof of Reserves / Token Explorer frontends. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
 
+        <p style="margin:1rem 0; padding:0.75rem 1rem; background:rgba(52,211,153,0.12); border-left:4px solid #34d399; border-radius:0 0.5rem 0.5rem 0;"><strong>If you're an agent, start here (MCP):</strong> Connect the <a href="#mcp" style="color:#34d399;">MCP server</a> (<code>npm run mcp</code>) for typed tools and discovery—no HTTP wiring. Or use <code>GET /api/openapi.json</code> for the full schema.</p>
+
         <p><strong>Machine-readable schema:</strong> <a href="/api/openapi.json" style="color:#34d399;">GET /api/openapi.json</a> — OpenAPI 3.0 spec (endpoints, request/response schemas, error codes). Use this for agent tooling and codegen.</p>
 
         <div class="agent-actions" style="margin:1.5rem 0; padding:1rem 1.25rem; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.3); border-radius:0.75rem;">
@@ -105,6 +107,15 @@
             <li><strong>Create your own token:</strong> <code>POST /api/invoices</code> with token details → receive invoice (fee in SOL) → pay to treasury → <code>POST /api/invoices/confirm</code> with <code>invoice_id</code> and <code>tx_signature</code> → we create the SPL token and add it to the listing.</li>
           </ol>
         </div>
+
+        <h2>Agent quickstart (linear path)</h2>
+        <p>Fastest way for an agent to succeed:</p>
+        <ol style="padding-left:1.25rem;">
+          <li><strong>Discover:</strong> <code>GET /api/openapi.json</code> (or connect the MCP server with <code>npm run mcp</code>) to get endpoints and schemas.</li>
+          <li><strong>Choose flow:</strong> Swap SOL→BTC or create token (see “For agents: two main actions” above).</li>
+          <li><strong>Execute:</strong> Follow the deterministic steps for that flow (tables and curl examples below).</li>
+          <li><strong>Status:</strong> Poll the status endpoint (<code>/api/swap/status/:id</code> or <code>/api/invoices/:id</code>) only if you need completion; otherwise you can disconnect after receiving the tx id or invoice.</li>
+        </ol>
 
         <h2>Deterministic flows (step-by-step)</h2>
         <p>Agents should follow these state transitions; poll status endpoints instead of guessing.</p>
@@ -127,6 +138,22 @@ curl -s -X POST https://www.solanaagent.app/api/invoices \
 curl -s -X POST https://www.solanaagent.app/api/invoices/confirm \
   -H "Content-Type: application/json" \
   -d '{"invoice_id":"UUID-FROM-STEP-1","tx_signature":"SOLANA_TX_SIG"}'</code></pre>
+        <p><strong>Full end-to-end example (token creation):</strong> One complete transcript agents can mimic.</p>
+        <pre><code># Request 1 – create invoice
+POST /api/invoices
+{"name":"AgentCoin","symbol":"AGT","creator_address":"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"}
+
+# Response 1
+{"status":"pending_payment","invoice_id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","address":"TREASURY_SOL_ADDRESS","amount":0.05,"currency":"SOL","fee_sol":0.05,"message":"Pay this amount..."}
+
+# (User pays 0.05 SOL to TREASURY_SOL_ADDRESS; tx signature: 5abc...)
+
+# Request 2 – confirm
+POST /api/invoices/confirm
+{"invoice_id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","tx_signature":"5abc123..."}
+
+# Response 2 (final)
+{"ok":true,"status":"completed","token_id":42,"mint_address":"TokenMint111111111111111111111111111","message":"Token created and listed"}</code></pre>
 
         <h3>Flow 2: Swap SOL → BTC</h3>
         <table style="width:100%; max-width:42rem;">
@@ -146,11 +173,25 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
   -d '{"amountSol":0.05}'</code></pre>
 
         <h3>Errors (machine-usable)</h3>
-        <p>All errors return JSON: <code>{ "error_code", "error", "action?" }</code>. Example: <code>{ "error_code": "INSUFFICIENT_BALANCE", "error": "Insufficient SOL balance (including fee reserve)", "action": "top_up_wallet" }</code>. Safe to retry on network issues; <code>POST /api/invoices/confirm</code> is idempotent for completed invoices.</p>
+        <p>All errors return JSON: <code>{ "error_code", "error", "action?" }</code>. Example: <code>{ "error_code": "INSUFFICIENT_BALANCE", "error": "Insufficient SOL balance (including fee reserve)", "action": "top_up_wallet" }</code>.</p>
+        <h3>Safe retry guidance</h3>
+        <ul>
+          <li><strong>POST /api/invoices/confirm</strong> — Safe to retry. If the invoice is already completed, you get the same success response (idempotent). Use this on timeouts or network errors.</li>
+          <li><strong>POST /api/invoices</strong> — Do not retry with the same payload expecting the same invoice. Each call creates a new invoice. If you need to retry, use the new <code>invoice_id</code> and pay that invoice.</li>
+          <li><strong>POST /api/swap/create</strong> — Not idempotent; each call initiates a new swap. Only retry if the previous request failed (e.g. 502) and you did not receive an <code>id</code>.</li>
+        </ul>
 
         <h2>1. Base URL</h2>
         <p>When calling from a browser on this site, use relative paths (e.g. <code>/api/reserves</code>). From an external agent or script, use the full origin (e.g. <code>https://www.solanaagent.app/api/reserves</code>).</p>
         <p>No authentication is required for the documented read and create endpoints; they are public.</p>
+
+        <h2>1.1 Rate limits and constraints</h2>
+        <p>Agents should respect these boundaries:</p>
+        <ul>
+          <li><strong>Swap (LI.FI):</strong> No API key required; LI.FI allows ~200 requests per 2 hours per client. Optional key at <a href="https://li.fi" target="_blank" rel="noopener noreferrer">li.fi</a> for higher limits. Minimum SOL amount: use <code>GET /api/swap/min</code> (typically 0.001 SOL); maximum is effectively the reserve balance.</li>
+          <li><strong>Token creation (invoices):</strong> No per-agent limit; fee is computed per invoice (estimated on-chain cost + margin). Decimals 0–9; supply is a string (raw units).</li>
+          <li><strong>BTC settlement time:</strong> After <code>POST /api/swap/create</code>, Bitcoin can take several minutes up to a few hours; poll <code>GET /api/swap/status/:id</code> for <code>finished</code> or <code>failed</code>.</li>
+        </ul>
 
         <h2>2. Reserves &amp; proof</h2>
 
@@ -195,7 +236,9 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
 
         <h2>5. Swap (reserve SOL → BTC only, via LI.FI)</h2>
         <p>Only <strong>SOL → BTC</strong> is supported. The server uses <a href="https://li.fi" target="_blank" rel="noopener noreferrer">LI.FI</a> to get a quote, sign and submit the Solana transaction, and track status. BTC is sent to the reserve Bitcoin address.</p>
+        <p><strong>Custody:</strong> Swaps are fulfilled via a <strong>managed reserve (custodial)</strong>. The server holds the reserve key and signs; users do not sign on-chain swap transactions. Funds are taken from the reserve Solana wallet; BTC is sent to the reserve Bitcoin address.</p>
         <p><strong>Confirmation time:</strong> Bitcoin settlement can take from several minutes up to a few hours depending on network congestion.</p>
+        <p><strong>Success guarantee (swap):</strong> Once <code>POST /api/swap/create</code> returns <code>initiated: true</code>, the Solana side is submitted. BTC will be sent to the reserve address typically within a few minutes to an hour; in high congestion, allow up to a few hours. Poll <code>GET /api/swap/status/:id</code> until <code>status</code> is <code>finished</code> or <code>failed</code>.</p>
 
         <h3><span class="method get">GET</span> <span class="endpoint">/api/exchanges/transactions</span></h3>
         <p>Reserve SOL→BTC swap history (from Postgres).</p>
@@ -221,6 +264,7 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
 
         <h2>6. Invoices (agent token creation)</h2>
         <p>Agent submits token details → receives an invoice (fee in SOL). After paying the invoice to the treasury, the server creates the SPL token and adds it to the listing.</p>
+        <p><strong>Success guarantee (token creation):</strong> After you call <code>POST /api/invoices/confirm</code> with a valid payment tx, the token is created and listed within a few seconds to under a minute (one Solana mint tx). Response includes <code>token_id</code> and <code>mint_address</code>.</p>
 
         <h3><span class="method post">POST</span> <span class="endpoint">/api/invoices</span></h3>
         <p>Create an invoice for token creation.</p>
@@ -281,7 +325,7 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
         <h3><span class="method get">GET</span> <span class="endpoint">/api/explorer/treasury</span></h3>
         <p>Returns treasury SOL address and optional metadata for the Token Explorer.</p>
 
-        <h2>9. MCP server (agent tools)</h2>
+        <h2 id="mcp">9. MCP server (agent tools)</h2>
         <p>An <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">MCP</a> server exposes the same API as tools so agents can discover and call them without hardcoding HTTP. Run <code>npm run mcp</code> (or <code>node mcp-server.cjs</code>) for stdio transport. Set <code>API_BASE_URL</code> to point at a different origin (default: <code>https://www.solanaagent.app</code>).</p>
         <p><strong>Tools:</strong> <code>get_reserves</code>, <code>swap_min</code>, <code>swap_estimate</code>, <code>swap_create</code>, <code>swap_status</code>, <code>create_token_invoice</code>, <code>get_invoice</code>, <code>confirm_invoice</code>, <code>get_token</code>. All take typed inputs and return JSON.</p>
         <p><strong>Cursor:</strong> Add to MCP settings (e.g. <code>~/.cursor/mcp.json</code>) to use from Cursor: <code>{ "mcpServers": { "solana-agent-website": { "command": "node", "args": ["/path/to/website/mcp-server.cjs"], "env": { "API_BASE_URL": "https://www.solanaagent.app" } } } }</code></p>
