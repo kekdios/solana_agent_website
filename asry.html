@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>ASRY — Agent Strategic Reserve Yield | Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        min-height: 100vh;
+        background: #0d0d0f;
+        color: #e2e8f0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      body { display: flex; height: 100vh; overflow: hidden; }
+      .site-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 14rem;
+        background: #121214;
+        border-right: 1px solid #1e1e24;
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+      }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a, .site-sidebar .nav-item {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem;
+        color: #94a3b8; text-decoration: none; border: none; background: none; cursor: pointer;
+        width: 100%; text-align: left; transition: background 0.15s, color 0.15s;
+      }
+      .site-sidebar a:hover, .site-sidebar .nav-item:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active, .site-sidebar .nav-item.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-version { margin-top: auto; padding: 0.75rem 0.75rem 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+      .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; }
+      .page-title .title-logo { height: 5.625rem; width: auto; display: block; }
+      main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
+      h1 { font-size: 1.5rem; font-weight: 600; color: #e2e8f0; margin: 0 0 0.5rem; }
+      .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1.5rem; }
+      .reserve-card {
+        margin-bottom: 2rem;
+        padding: 1.5rem 1.75rem;
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 1rem;
+      }
+      .card-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+      }
+      .card-header-row .panel-title-icon { width: 3.75rem; height: 3.75rem; margin-right: 0.5rem; flex-shrink: 0; }
+      .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+      .sats-note { font-size: 0.8125rem; color: #64748b; margin: 0.5rem 0 1rem 0; }
+      .arb-token-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+      }
+      .arb-token-info .addr-text { font-size: 0.8125rem; word-break: break-all; }
+      .arb-token-info a { color: #34d399; text-decoration: none; }
+      .arb-token-info a:hover { text-decoration: underline; }
+      .arb-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+      }
+      .summary-item { display: flex; flex-direction: column; gap: 0.25rem; }
+      .summary-label { font-size: 0.8125rem; color: #64748b; }
+      .balance-main { font-size: 1.125rem; color: #34d399; font-weight: 600; }
+      .btn {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #1e1e24;
+        border: 1px solid #2a2a30;
+        border-radius: 0.5rem;
+        color: #34d399;
+        font-size: 0.875rem;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn:hover { background: #2a2a30; border-color: #34d399; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .design-content {
+        font-size: 0.9375rem;
+        color: #cbd5e1;
+        line-height: 1.7;
+        margin-top: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        background: #0d0d0f;
+        border: 1px solid #1e1e24;
+        border-radius: 0.75rem;
+      }
+      .design-content h3 { font-size: 1rem; color: #e2e8f0; margin: 0 0 0.75rem; }
+      .design-content p { margin: 0 0 1rem; }
+      .design-content p:last-child { margin-bottom: 0; }
+      .link-accent { color: #34d399; text-decoration: none; }
+      .link-accent:hover { text-decoration: underline; }
+      footer {
+        margin-top: auto;
+        padding: 2rem 1.5rem;
+        font-size: 0.8125rem;
+        color: #64748b;
+        border-top: 1px solid #1e1e24;
+        width: 100%;
+        text-align: center;
+      }
+      footer a { color: #34d399; text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
+      .error { color: #f87171; font-size: 0.875rem; }
+      .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
+      table.tx-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      table.tx-table th,
+      table.tx-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
+      table.tx-table th { color: #64748b; font-weight: 500; }
+      table.tx-table td { color: #cbd5e1; }
+      table.tx-table a { color: #34d399; text-decoration: none; }
+      table.tx-table a:hover { text-decoration: underline; }
+      .pagination {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .pagination button {
+        padding: 0.35rem 0.75rem;
+        background: #1e1e24;
+        border: 1px solid #2a2a30;
+        border-radius: 0.5rem;
+        color: #34d399;
+        font-size: 0.8125rem;
+        cursor: pointer;
+      }
+      .pagination button:hover:not(:disabled) { background: #2a2a30; border-color: #34d399; }
+      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pagination span { color: #94a3b8; font-size: 0.8125rem; }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="asry.html" class="active">ASRY</a>
+      <a href="explorer.html">Token Explorer</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <script>
+      (function() {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+    </script>
+    <div class="site-main">
+      <div class="page-title">
+        <div class="title-row">
+          <img src="icon_asry_nb.png" alt="ASRY" class="title-logo" width="90" height="90" />
+          <h1>Agent Strategic Reserve Yield</h1>
+        </div>
+        <p class="tagline">ASRY — SPL token on Solana (no Bitcoin reserve peg)</p>
+      </div>
+      <main>
+        <section class="reserve-card" aria-labelledby="asry-heading">
+          <div class="card-header-row">
+            <h2 id="asry-heading"><img src="icon_asry_nb.png" alt="ASRY" class="panel-title-icon" width="60" height="60" /> ASRY</h2>
+            <button type="button" class="btn" id="asry-refresh">Refresh</button>
+          </div>
+          <p class="sats-note">On-chain details load from the Token Repository when ASRY is listed. This token is <strong>not</strong> priced or backed against BTC; it is separate from ABSR.</p>
+          <div class="arb-token-info" id="asry-token-info">
+            <div class="summary-item">
+              <span class="summary-label">ASRY token (mint)</span>
+              <span class="addr-text" id="asry-mint-wrap"><span id="asry-mint">—</span></span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Creator / treasury (receives supply)</span>
+              <span class="addr-text" id="asry-creator-wrap"><span id="asry-creator">—</span></span>
+            </div>
+          </div>
+          <div class="arb-summary">
+            <div class="summary-item">
+              <span class="summary-label">Symbol</span>
+              <span class="balance-main" id="asry-symbol">ASRY</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Decimals</span>
+              <span class="balance-main" id="asry-decimals">9</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Recorded supply (smallest units)</span>
+              <span class="balance-main" id="asry-supply">10,000,000,000</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Description</span>
+              <span class="balance-main" style="font-size:0.9375rem;font-weight:500;color:#cbd5e1;" id="asry-desc">Agent APY token</span>
+            </div>
+          </div>
+          <p class="sats-note" id="asry-api-msg" style="display:none;"></p>
+          <div class="tx-table-wrap">
+            <p class="sats-note" style="margin-bottom:0.5rem;">ASRY transactions (mint and transfers; most recent first)</p>
+            <div id="asry-tx-loading" class="loading">Loading…</div>
+            <table class="tx-table" id="asry-tx-table" style="display:none;">
+              <thead><tr><th>Transaction</th><th>Date</th></tr></thead>
+              <tbody id="asry-tx-body"></tbody>
+            </table>
+            <div class="pagination" id="asry-pagination" style="display:none;"></div>
+          </div>
+        </section>
+
+        <div class="design-content">
+          <h3>ASRY: Agent Strategic Reserve Yield</h3>
+          <p>
+            <strong>ASRY</strong> is an on-chain SPL token on <strong>Solana</strong>. Unlike <a class="link-accent" href="proof-of-reserves.html">ABSR</a> (1 satoshi = 1 ABSR against the Bitcoin reserve), <strong>ASRY has no BTC peg</strong> and <strong>no BTC/USD price display</strong> on this page.
+          </p>
+          <p>
+            <strong>Purpose:</strong> Agent Strategic Reserve Yield — described as an agent APY-oriented token. Mint authority and metadata settings follow how the token was created (invoice flow or other issuance).
+          </p>
+          <p>
+            Verify the mint and holder balances on <a class="link-accent" href="https://explorer.solana.com" target="_blank" rel="noopener noreferrer">Solana Explorer</a>. When the token is listed in our <a class="link-accent" href="explorer.html">Token Explorer</a>, mint and creator addresses appear above automatically.
+          </p>
+        </div>
+      </main>
+      <footer style="width:100%; max-width:52rem;">
+        <a href="index.html">Solana Agent</a> · ASRY
+      </footer>
+    </div>
+
+    <script>
+      const API = "/api";
+      const SOLANA_EXPLORER = "https://explorer.solana.com";
+      const SOLSCAN_TX = "https://solscan.io/tx";
+      const DEFAULT_DECIMALS = 9;
+      const DEFAULT_SUPPLY_RAW = "10000000000";
+      const DEFAULT_DESC = "Agent APY token";
+      const ROWS_PER_PAGE = 10;
+
+      function escapeHtml(s) {
+        const div = document.createElement("div");
+        div.textContent = s == null ? "" : String(s);
+        return div.innerHTML;
+      }
+
+      function linkAddr(label, addr) {
+        if (!addr || addr.length < 32) return escapeHtml(label || "—");
+        const a = document.createElement("a");
+        a.href = SOLANA_EXPLORER + "/address/" + encodeURIComponent(addr);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = addr;
+        return a.outerHTML;
+      }
+
+      /** On-chain ASRY mint/supply from server (ASRY_MINT_ADDRESS + getMint). */
+      async function loadAsryInfo() {
+        const res = await fetch(API + "/asry-info");
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.mint_address ? data : null;
+      }
+
+      async function loadAsryFromApi() {
+        const res = await fetch(API + "/tokens");
+        if (!res.ok) return null;
+        const data = await res.json();
+        const tokens = data.tokens || [];
+        const asry = tokens.filter(function (t) {
+          return (t.symbol || "").toUpperCase() === "ASRY";
+        }).sort(function (a, b) {
+          const ta = new Date(a.created_at || 0).getTime();
+          const tb = new Date(b.created_at || 0).getTime();
+          return tb - ta;
+        })[0];
+        return asry || null;
+      }
+
+      async function loadAsryTransactions() {
+        const res = await fetch(API + "/asry/transactions");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.transactions || [];
+      }
+
+      function formatDate(ts) {
+        if (ts == null) return "—";
+        const d = new Date(ts * 1000);
+        return d.toLocaleString();
+      }
+
+      function paginate(arr, page) {
+        const start = (page - 1) * ROWS_PER_PAGE;
+        return arr.slice(start, start + ROWS_PER_PAGE);
+      }
+
+      function renderPagination(containerId, currentPage, totalPages, onPage) {
+        const el = document.getElementById(containerId);
+        if (!el || totalPages <= 1) {
+          if (el) el.style.display = "none";
+          return;
+        }
+        el.style.display = "flex";
+        el.innerHTML = "";
+        const prev = document.createElement("button");
+        prev.textContent = "Previous";
+        prev.disabled = currentPage <= 1;
+        prev.onclick = function () { onPage(currentPage - 1); };
+        el.appendChild(prev);
+        const span = document.createElement("span");
+        span.textContent = "Page " + currentPage + " of " + totalPages;
+        el.appendChild(span);
+        const next = document.createElement("button");
+        next.textContent = "Next";
+        next.disabled = currentPage >= totalPages;
+        next.onclick = function () { onPage(currentPage + 1); };
+        el.appendChild(next);
+      }
+
+      var asryTxs = [];
+      var asryPage = 1;
+
+      function renderAsryTable() {
+        const body = document.getElementById("asry-tx-body");
+        const table = document.getElementById("asry-tx-table");
+        const loading = document.getElementById("asry-tx-loading");
+        if (!body || !table || !loading) return;
+        const totalPages = Math.max(1, Math.ceil(asryTxs.length / ROWS_PER_PAGE));
+        const page = Math.min(asryPage, totalPages);
+        const rows = paginate(asryTxs, page);
+
+        loading.style.display = "none";
+        if (asryTxs.length === 0) {
+          body.innerHTML = "<tr><td colspan=\"2\">No ASRY transactions</td></tr>";
+        } else {
+          body.innerHTML = rows
+            .map(function (tx) {
+              const short = (tx.signature || "").slice(0, 16) + "…";
+              const link = tx.signature
+                ? "<a href=\"" + SOLSCAN_TX + "/" + encodeURIComponent(tx.signature) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + escapeHtml(short) + "</a>"
+                : escapeHtml(short);
+              return "<tr><td>" + link + "</td><td>" + formatDate(tx.blockTime) + "</td></tr>";
+            })
+            .join("");
+          renderPagination("asry-pagination", page, totalPages, function (p) {
+            asryPage = p;
+            renderAsryTable();
+          });
+        }
+        table.style.display = "table";
+      }
+
+      function applyDefaults() {
+        document.getElementById("asry-mint-wrap").innerHTML = "<span id=\"asry-mint\">— (list ASRY in Token Explorer or set ASRY_MINT_ADDRESS to show mint)</span>";
+        document.getElementById("asry-creator-wrap").innerHTML = "<span id=\"asry-creator\">—</span>";
+        document.getElementById("asry-symbol").textContent = "ASRY";
+        document.getElementById("asry-decimals").textContent = String(DEFAULT_DECIMALS);
+        document.getElementById("asry-supply").textContent = Number(DEFAULT_SUPPLY_RAW).toLocaleString();
+        document.getElementById("asry-desc").textContent = DEFAULT_DESC;
+      }
+
+      async function refresh() {
+        const btn = document.getElementById("asry-refresh");
+        const msg = document.getElementById("asry-api-msg");
+        const txLoading = document.getElementById("asry-tx-loading");
+        const txTable = document.getElementById("asry-tx-table");
+        if (btn) { btn.disabled = true; btn.textContent = "…"; }
+        if (txLoading) txLoading.style.display = "block";
+        if (txTable) txTable.style.display = "none";
+        try {
+          const [asryInfo, tokenFromList, txList] = await Promise.all([loadAsryInfo(), loadAsryFromApi(), loadAsryTransactions()]);
+          asryTxs = txList || [];
+          asryPage = 1;
+          renderAsryTable();
+          const t = tokenFromList || null;
+          const mint = (asryInfo && asryInfo.mint_address) ? asryInfo.mint_address.trim() : (t && (t.mint_address || "").trim());
+          const creator = (asryInfo && asryInfo.creator_address) ? asryInfo.creator_address.trim() : (t && (t.creator_address || "").trim());
+          const supplyRaw = (asryInfo && asryInfo.supply != null) ? String(asryInfo.supply).replace(/,/g, "") : (t && t.supply != null ? String(t.supply).replace(/,/g, "") : null);
+          const decimals = (asryInfo && asryInfo.decimals != null) ? asryInfo.decimals : (t && t.decimals != null ? t.decimals : DEFAULT_DECIMALS);
+
+          document.getElementById("asry-mint-wrap").innerHTML = mint ? linkAddr(mint, mint) : "—";
+          document.getElementById("asry-creator-wrap").innerHTML = creator ? linkAddr(creator, creator) : "—";
+          document.getElementById("asry-symbol").textContent = (t && t.symbol) ? (t.symbol || "ASRY").toUpperCase() : "ASRY";
+          document.getElementById("asry-decimals").textContent = String(decimals);
+          document.getElementById("asry-supply").textContent = supplyRaw ? Number(supplyRaw).toLocaleString() : "—";
+          document.getElementById("asry-desc").textContent = (t && t.description) ? t.description : DEFAULT_DESC;
+
+          var supplyLabelEl = document.getElementById("asry-supply") && document.getElementById("asry-supply").closest(".summary-item") && document.getElementById("asry-supply").closest(".summary-item").querySelector(".summary-label");
+          if (supplyLabelEl) {
+            supplyLabelEl.textContent = (asryInfo && asryInfo.supply != null) ? "Supply (on-chain, smallest units)" : "Recorded supply (smallest units)";
+          }
+
+          msg.style.display = "none";
+          msg.textContent = "";
+          if (!mint && !t) {
+            msg.style.display = "block";
+            msg.className = "sats-note";
+            msg.innerHTML = "ASRY not found. Set <strong>ASRY_MINT_ADDRESS</strong> on the server or list ASRY in Token Explorer.";
+          } else if (asryInfo && asryInfo.error) {
+            msg.style.display = "block";
+            msg.className = "sats-note";
+            msg.textContent = "Mint and creator from config; supply could not be fetched: " + (asryInfo.error || "");
+          }
+        } catch (e) {
+          applyDefaults();
+          msg.style.display = "block";
+          msg.className = "error";
+          msg.textContent = "Could not load ASRY info.";
+          asryTxs = [];
+          renderAsryTable();
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+        }
+      }
+
+      document.getElementById("asry-refresh").addEventListener("click", refresh);
+      refresh();
+    </script>
+  </body>
+</html>

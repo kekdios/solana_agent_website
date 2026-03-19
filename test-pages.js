@@ -8,13 +8,14 @@ const path = require("path");
 
 const PAGES = [
   "index.html",
+  "asry.html",
   "explorer.html",
   "proof-of-reserves.html",
   "api.html",
 ];
 
 const REQUIRED_ASSETS = ["icon_dock.png", "solanaagent_rec.png"];
-const REQUIRED_NAV = ["index.html", "explorer.html", "proof-of-reserves.html", "api.html"];
+const REQUIRED_NAV = ["index.html", "asry.html", "explorer.html", "proof-of-reserves.html", "api.html"];
 
 let failed = 0;
 

@@ -169,6 +169,7 @@
     <aside class="site-sidebar" role="navigation">
       <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
       <a href="index.html">Home</a>
+      <a href="asry.html">ASRY</a>
       <span class="nav-item active" style="color:#94a3b8; cursor:default;">Token Explorer</span>
       <div class="nav-sub">
         <button type="button" class="nav-item active" id="menu-create" data-panel="panel-create">Create Token</button>
@@ -214,9 +215,9 @@
               <p class="hint"><strong>Explanation:</strong> Number of decimal places (0–9). 9 is standard for SPL; 6 is common for stablecoins.</p>
             </div>
             <div class="form-row">
-              <label for="token-supply">Token Supply</label>
-              <input type="text" id="token-supply" name="supply" required placeholder="1000000000" />
-              <p class="hint"><strong>Explanation:</strong> Total supply in smallest units (before decimals). E.g. 1_000_000_000 with 9 decimals = 1 token.</p>
+              <label for="token-supply">Total supply (tokens)</label>
+              <input type="text" id="token-supply" name="supply" required placeholder="10" inputmode="decimal" />
+              <p class="hint"><strong>Explanation:</strong> Total supply as a number of tokens (e.g. 10 = 10 tokens). With 9 decimals this becomes 10,000,000,000 smallest units on-chain.</p>
             </div>
             <div class="form-row">
               <label for="token-description">Token Description (optional)</label>
@@ -401,15 +402,30 @@
         listingFeeSol = data.listing_fee_sol != null ? Number(data.listing_fee_sol) : 0.1;
       }
 
+      function humanSupplyToRaw(humanStr, decimals) {
+        const n = Number(String(humanStr).replace(/,/g, "").trim());
+        if (!Number.isFinite(n) || n <= 0) return null;
+        const dec = Math.min(9, Math.max(0, decimals));
+        const raw = Math.floor(n * Math.pow(10, dec));
+        return raw > 0 ? String(raw) : null;
+      }
+
       document.getElementById("btn-create-invoice").onclick = async () => {
         const form = document.getElementById("form-create-token");
         const msg = document.getElementById("create-msg");
         msg.textContent = "";
+        const decimals = parseInt(form.decimals.value, 10) || 9;
+        const supplyRaw = humanSupplyToRaw(form.supply.value, decimals);
+        if (!supplyRaw) {
+          msg.textContent = "Enter a positive number of tokens for supply (e.g. 10).";
+          msg.className = "error";
+          return;
+        }
         const body = {
           name: form.name.value.trim(),
           symbol: form.symbol.value.trim(),
-          decimals: parseInt(form.decimals.value, 10) || 9,
-          supply: form.supply.value.replace(/,/g, ""),
+          decimals,
+          supply: supplyRaw,
           description: form.description.value.trim() || null,
           metaplex_metadata: form.metaplex_metadata.checked,
           revoke_freeze_authority: form.revoke_freeze_authority.checked,
@@ -512,11 +528,18 @@
         const msg = document.getElementById("create-msg");
         msg.textContent = "";
         const form = e.target;
+        const decimals = parseInt(form.decimals.value, 10) || 9;
+        const supplyRaw = humanSupplyToRaw(form.supply.value, decimals);
+        if (!supplyRaw) {
+          msg.textContent = "Enter a positive number of tokens for supply (e.g. 10).";
+          msg.className = "error";
+          return;
+        }
         const body = {
           name: form.name.value.trim(),
           symbol: form.symbol.value.trim(),
-          decimals: parseInt(form.decimals.value, 10) || 9,
-          supply: form.supply.value.replace(/,/g, ""),
+          decimals,
+          supply: supplyRaw,
           description: form.description.value.trim() || null,
           metaplex_metadata: form.metaplex_metadata.checked,
           revoke_freeze_authority: form.revoke_freeze_authority.checked,

@@ -36,9 +36,12 @@ CONTENT_DIR="$SCRIPT_DIR"
 UPDATE_ONLY="${UPDATE_ONLY:-1}"
 
 # Deploy files (nginx, patch) live in agent/deploy/ when run from website/
-DEPLOY_DIR="$(cd "$SCRIPT_DIR/../agent/deploy" 2>/dev/null && pwd)"
-if [ -z "$DEPLOY_DIR" ] || [ ! -f "$DEPLOY_DIR/nginx-api-location.conf" ]; then
-  DEPLOY_DIR=""
+# (Do not use failing cd in $(...) with set -e — script would exit with no message.)
+DEPLOY_DIR=""
+if [ -f "$SCRIPT_DIR/../agent/deploy/nginx-api-location.conf" ]; then
+  DEPLOY_DIR="$(cd "$SCRIPT_DIR/../agent/deploy" && pwd)"
+fi
+if [ -z "$DEPLOY_DIR" ]; then
   if [ "$UPDATE_ONLY" = "0" ]; then
     echo "Note: agent/deploy/ not found (run from repo with website/ and agent/). Nginx/SSL setup will be skipped."
   else
@@ -63,7 +66,7 @@ send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
 # 2. SCP website files (static + API server)
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/explorer.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/api-server.cjs $env(CONTENT_DIR)/openapi.json $env(CONTENT_DIR)/package.json $env(CONTENT_DIR)/mint-absr-to-reserve.cjs $env(CONTENT_DIR)/run-daily-absr-mint.sh $env(CONTENT_DIR)/test-lifi-sol-to-btc.js $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/asry.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/explorer.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/icon_asry_nb.png $env(CONTENT_DIR)/icon_absr_nb.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/api-server.cjs $env(CONTENT_DIR)/openapi.json $env(CONTENT_DIR)/package.json $env(CONTENT_DIR)/mint-absr-to-reserve.cjs $env(CONTENT_DIR)/run-daily-absr-mint.sh $env(CONTENT_DIR)/test-lifi-sol-to-btc.js $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof

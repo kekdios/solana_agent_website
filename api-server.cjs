@@ -24,6 +24,7 @@ function sendError(res, status, errorCode, message, action) {
 }
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 const ABSR_MINT_ADDRESS = (process.env.ABSR_MINT_ADDRESS || "").trim() || "BvtyqwRSgrKjX3jUfR7Sq5XmuVKrPEcSTDbLmTCstP1E";
+const ASRY_MINT_ADDRESS = (process.env.ASRY_MINT_ADDRESS || "").trim() || "3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw";
 const PROOF_MESSAGE_PREFIX = "Solana Agent proof of reserves";
 const LIFI_BASE = "https://li.quest/v1";
 const LIFI_FROM_CHAIN = "1151111081099710";
@@ -773,15 +774,15 @@ const server = http.createServer(async (req, res) => {
         [name, symbol, decimals, supplyNum, description, revokeFreeze, revokeMint, revokeUpdate, metaplex, creatorAddress, feeSol, feeLamports]
       );
       const row = q.rows[0];
-      const feeSol = Number(row.fee_sol);
+      const feeSolResponse = Number(row.fee_sol);
       res.writeHead(200);
       res.end(JSON.stringify({
         status: "pending_payment",
         invoice_id: row.id,
         treasury_address: TREASURY_SOLANA_ADDRESS,
         address: TREASURY_SOLANA_ADDRESS,
-        amount: feeSol,
-        fee_sol: feeSol,
+        amount: feeSolResponse,
+        fee_sol: feeSolResponse,
         fee_lamports: Number(row.fee_lamports),
         currency: "SOL",
         message: "Pay this amount to our treasury. Once confirmed, we create the token and add it to the listing.",
@@ -1273,6 +1274,68 @@ const server = http.createServer(async (req, res) => {
         estimated_creation_sol: ESTIMATED_CREATION_SOL,
       })
     );
+    return;
+  }
+
+  if (path === "/api/asry-info" && req.method === "GET") {
+    const mintAddress = ASRY_MINT_ADDRESS || null;
+    if (!mintAddress) {
+      res.writeHead(200);
+      res.end(JSON.stringify({ mint_address: null, supply: null, decimals: null, creator_address: null }));
+      return;
+    }
+    (async function () {
+      try {
+        const conn = new Connection(SOLANA_RPC);
+        const mintInfo = await getMint(conn, new PublicKey(mintAddress));
+        res.writeHead(200);
+        res.end(
+          JSON.stringify({
+            mint_address: mintAddress,
+            supply: mintInfo && mintInfo.supply != null ? String(mintInfo.supply) : null,
+            decimals: mintInfo && mintInfo.decimals != null ? mintInfo.decimals : 9,
+            creator_address: TREASURY_SOLANA_ADDRESS || null,
+          })
+        );
+      } catch (e) {
+        res.writeHead(200);
+        res.end(
+          JSON.stringify({
+            mint_address: mintAddress,
+            supply: null,
+            decimals: 9,
+            creator_address: TREASURY_SOLANA_ADDRESS || null,
+            error: e.message || "Failed to fetch on-chain supply",
+          })
+        );
+      }
+    })();
+    return;
+  }
+
+  if (path === "/api/asry/transactions" && req.method === "GET") {
+    const mintAddress = ASRY_MINT_ADDRESS || null;
+    if (!mintAddress) {
+      res.writeHead(200);
+      res.end(JSON.stringify({ transactions: [] }));
+      return;
+    }
+    (async function () {
+      try {
+        const conn = new Connection(SOLANA_RPC);
+        const sigs = await conn.getSignaturesForAddress(new PublicKey(mintAddress), { limit: 50 });
+        const transactions = sigs.map((s) => ({
+          signature: s.signature,
+          blockTime: s.blockTime,
+          err: s.err ?? null,
+        }));
+        res.writeHead(200);
+        res.end(JSON.stringify({ transactions }));
+      } catch (e) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ transactions: [] }));
+      }
+    })();
     return;
   }
 

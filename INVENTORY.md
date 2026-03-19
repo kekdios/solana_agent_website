@@ -20,7 +20,8 @@ All files under `website/` excluding `node_modules/` and `.git/`:
 | `deploy-website-to-droplet.sh` | 4175 | No |
 | `explorer.html` | 36349 | Yes |
 | `icon_dock.png` | 27357 | Yes |
-| `index.html` | 7181 | Yes |
+| `index.html` | — | Yes |
+| `asry.html` | — | Yes |
 | `loading-animation.gif` | 229697 | Yes |
 | `logo_btc_nb.png` | 101106 | Yes |
 | `package-lock.json` | 77390 | No |
@@ -32,7 +33,7 @@ All files under `website/` excluding `node_modules/` and `.git/`:
 | `test-api-no-tx.js` | 5697 | No |
 | `test-pages.js` | — | No |
 
-**Total: 20 files** (exclude `node_modules/` and `.git/`). `.DS_Store` and `.env` are gitignored.
+**Total: 21+ files** (exclude `node_modules/` and `.git/`). `.DS_Store` and `.env` are gitignored.
 
 ---
 
@@ -42,6 +43,7 @@ From `deploy-website-to-droplet.sh` (SCP targets):
 
 **Root of `/var/www/solana_agent/`:**
 - `index.html`
+- `asry.html`
 - `proof-of-reserves.html`
 - `explorer.html`
 - `api.html`

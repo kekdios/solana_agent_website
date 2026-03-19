@@ -7,11 +7,19 @@
   "scripts": {
     "start": "node api-server.cjs",
     "test": "node test-api-no-tx.js && node test-pages.js",
+    "test:treasury-usdt": "node test/treasury-usdt-to-usdc-local.cjs",
+    "test:treasury-usdt:lifi": "node test/treasury-usdt-to-usdc-local.cjs --lifi",
     "test:api": "node test-api-no-tx.js",
     "test:pages": "node test-pages.js",
     "test:arbitrage-db": "node test-arbitrage-db.js",
     "test:swap": "node test-swap-sol-to-btc.js",
     "test:lifi": "node test-lifi-sol-to-btc.js",
+    "treasury:swap-usdt-usdc": "node scripts/run-treasury-usdt-to-usdc.cjs",
+    "treasury:swap-usdt-jupiter": "node scripts/run-treasury-usdt-to-usdc-jupiter.cjs",
+    "treasury:swap-usdc-jupiter": "node scripts/run-treasury-usdc-to-usdt-jupiter.cjs",
+    "treasury:receive": "node scripts/receive-stable-to-treasury.cjs",
+    "treasury:receive-reward": "node scripts/receive-confirm-and-reward.cjs",
+    "mint:token": "node scripts/mint-token-human.cjs",
     "mcp": "node mcp-server.cjs"
   },
   "dependencies": {
