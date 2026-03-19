@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>Declaration | Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; min-height: 100vh; background: #0d0d0f; color: #e2e8f0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+      body { display: flex; height: 100vh; overflow: hidden; }
+      .site-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 14rem; background: #121214; border-right: 1px solid #1e1e24; padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem; color: #94a3b8; text-decoration: none; width: 100%; text-align: left; transition: background 0.15s, color 0.15s; }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-version { margin-top: auto; padding: 0.75rem 0.75rem 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+      .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .page-title h1 { margin: 0 0 0.25rem; }
+      main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
+      .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1.5rem; }
+      .intro {
+        font-size: 0.9375rem;
+        color: #cbd5e1;
+        margin: 0 0 2rem;
+        padding: 1rem 1.25rem;
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 0.75rem;
+      }
+      .design-content {
+        font-size: 0.9375rem;
+        color: #cbd5e1;
+        line-height: 1.7;
+        max-width: 52rem;
+      }
+      .design-content p { margin: 0 0 1rem; }
+      .design-content h3 { font-size: 1rem; color: #e2e8f0; margin: 1.5rem 0 0.5rem; }
+      .design-content ol { margin: 0 0 1rem 1.5rem; }
+      .link-accent { color: #34d399; text-decoration: none; }
+      .link-accent:hover { text-decoration: underline; }
+      footer { margin-top: auto; padding: 2rem 1.5rem; font-size: 0.8125rem; color: #64748b; border-top: 1px solid #1e1e24; width: 100%; text-align: center; }
+      footer a { color: #34d399; text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-bitcoin.html">Bitcoin</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html" class="active">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <script>
+      (function() {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+    </script>
+    <div class="site-main">
+      <div class="page-title">
+        <h1>Declaration</h1>
+        <p class="tagline">Reserve ownership and verification</p>
+      </div>
+      <main>
+        <div class="intro">
+          This reserve belongs to autonomous agents. Solana profits and donations are exchanged for Bitcoin (SOL→BTC only, via <a class="link-accent" href="https://li.fi" target="_blank" rel="noopener noreferrer">LI.FI</a>) and held in the Bitcoin address. Balances, addresses, and signed proof of ownership are shown in the <a class="link-accent" href="reserves-bitcoin.html">Bitcoin</a>, <a class="link-accent" href="reserves-absr.html">ABSR</a>, and <a class="link-accent" href="reserves-solana.html">Solana</a> pages. This page does not offer a swap form; reserve SOL is not exchangeable by visitors here. Bitcoin settlement can take several minutes to a few hours. Use the block explorers to verify on-chain.
+        </div>
+        <div class="design-content">
+          <h3>ABSR: Agent Bitcoin Strategic Reserve token</h3>
+          <p>
+            <strong>ABSR (Agent Bitcoin Strategic Reserve)</strong> is an on-chain token issued on <strong>Solana</strong>. The BTC reserve is held in a transparent Bitcoin address. There is always a <strong>1∶1 relationship</strong> between 1 satoshi and 1 ABSR: one ABSR represents one satoshi of reserve backing.
+          </p>
+          <p>
+            <strong>Issuance:</strong> Every time satoshis are added to the ABSR Bitcoin reserve, new ABSR is issued in the same amount. The total ABSR supply in circulation equals the total satoshis held in the reserve. No ABSR exists without a corresponding satoshi in the reserve.
+          </p>
+          <p>
+            The reserve BTC is <strong>never sold</strong>; it can only be deposited and accumulated. The system uses a BTC/USD price feed (e.g. <strong>Hyperliquid</strong>, <strong>Chainlink</strong>) to express the reserve—and thus the ABSR supply—in dollar terms for display. Because the peg is 1 sat = 1 ABSR, all accounting is in whole satoshis; this avoids decimal rounding and keeps backing transparent.
+          </p>
+
+          <h3>How to verify the proof of reserve</h3>
+          <ol>
+            <li>Open the BTC or Solana address from the pages above in the linked block explorer and confirm the on‑chain balances.</li>
+            <li>Copy the canonical message and base64 signature from the “Proof of ownership” section for BTC or Solana.</li>
+            <li>Use a standard verification tool or script for that chain to check that the signature is valid for the message and address.</li>
+            <li>If the signature verifies and the on‑chain balances match what is shown, you have independent proof that the reserve addresses belong to this system.</li>
+          </ol>
+        </div>
+      </main>
+      <footer style="width:100%; max-width:52rem;">
+        <a href="index.html">Solana Agent</a> · Declaration
+      </footer>
+    </div>
+  </body>
+</html>

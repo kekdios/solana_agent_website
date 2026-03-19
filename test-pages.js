@@ -9,12 +9,16 @@ const path = require("path");
 const PAGES = [
   "index.html",
   "asry.html",
+  "reserves-bitcoin.html",
+  "reserves-absr.html",
+  "reserves-solana.html",
+  "reserves-declaration.html",
   "proof-of-reserves.html",
   "api.html",
 ];
 
 const REQUIRED_ASSETS = ["icon_dock.png", "solanaagent_rec.png"];
-const REQUIRED_NAV = ["index.html", "asry.html", "proof-of-reserves.html", "api.html"];
+const REQUIRED_NAV = ["index.html", "asry.html", "reserves-bitcoin.html", "reserves-absr.html", "reserves-solana.html", "reserves-declaration.html", "proof-of-reserves.html", "api.html"];
 
 let failed = 0;
 
@@ -45,7 +49,7 @@ for (const page of PAGES) {
   check("has solanaagent_rec.png", html.includes("solanaagent_rec.png"));
 
   const navCount = REQUIRED_NAV.filter((n) => html.includes(n)).length;
-  check("nav links (at least 3 of 4)", navCount >= 3);
+  check("nav links (at least 6 of 8)", navCount >= 6);
 
   if (page === "proof-of-reserves.html") {
     check("uses /api for fetch", html.includes('"/api"') || html.includes("API + \""));

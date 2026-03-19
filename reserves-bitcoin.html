@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>Bitcoin Reserve | Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; min-height: 100vh; background: #0d0d0f; color: #e2e8f0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+      body { display: flex; height: 100vh; overflow: hidden; }
+      .site-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 14rem; background: #121214; border-right: 1px solid #1e1e24; padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem; color: #94a3b8; text-decoration: none; width: 100%; text-align: left; transition: background 0.15s, color 0.15s; }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-version { margin-top: auto; padding: 0.75rem 0.75rem 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+      .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; }
+      .page-title .title-logo { height: 2.25rem; width: auto; display: block; }
+      .page-title h1 { margin: 0 0 0.25rem; }
+      main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
+      .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1.5rem; }
+      .reserve-card { margin-bottom: 2.5rem; padding: 1.5rem 1.75rem; background: #121214; border: 1px solid #2a2a30; border-radius: 1rem; }
+      .card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+      .card-header-row .panel-title-icon { width: 1.5rem; height: 1.5rem; margin-right: 0.5rem; flex-shrink: 0; }
+      .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; }
+      .sats-note { font-size: 0.8125rem; color: #64748b; margin: -0.5rem 0 1rem 0; }
+      .balance-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1.5rem; margin-bottom: 1rem; }
+      .balance-main { font-size: 1.25rem; color: #34d399; font-weight: 600; }
+      .addr-qr { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+      .addr-qr img { width: 140px; height: 140px; border-radius: 0.5rem; background: #fff; }
+      .addr-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+      .addr-copy-btn { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; padding: 0.25rem; color: #94a3b8; border-radius: 0.375rem; flex-shrink: 0; }
+      .addr-copy-btn:hover { color: #34d399; background: rgba(255,255,255,0.05); }
+      .addr-text { font-family: ui-monospace, monospace; font-size: 0.8125rem; word-break: break-all; color: #94a3b8; max-width: 20rem; }
+      .btn { display: inline-block; padding: 0.5rem 1rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.5rem; color: #34d399; font-size: 0.875rem; text-decoration: none; cursor: pointer; margin-top: 0.5rem; }
+      .btn:hover { background: #2a2a30; border-color: #34d399; }
+      .proof-box { margin-top: 1rem; padding: 1rem; background: #0d0d0f; border-radius: 0.5rem; border: 1px solid #1e1e24; font-size: 0.8125rem; }
+      .proof-box .label { color: #64748b; margin-bottom: 0.25rem; }
+      .proof-box .value { font-family: ui-monospace, monospace; word-break: break-all; color: #cbd5e1; }
+      .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
+      table.tx-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+      table.tx-table th, table.tx-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
+      table.tx-table th { color: #64748b; font-weight: 500; }
+      table.tx-table td { color: #cbd5e1; }
+      table.tx-table a { color: #34d399; text-decoration: none; }
+      table.tx-table a:hover { text-decoration: underline; }
+      .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.875rem; }
+      .pagination button { padding: 0.35rem 0.75rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.375rem; color: #e2e8f0; cursor: pointer; }
+      .pagination button:hover:not(:disabled) { background: #2a2a30; border-color: #34d399; }
+      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pagination span { color: #94a3b8; }
+      .loading { color: #64748b; font-style: italic; }
+      .error { color: #f87171; }
+      footer { margin-top: auto; padding: 2rem 1.5rem; font-size: 0.8125rem; color: #64748b; border-top: 1px solid #1e1e24; width: 100%; text-align: center; }
+      footer a { color: #34d399; text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-bitcoin.html" class="active">Bitcoin</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <script>
+      (function() {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+    </script>
+    <div class="site-main">
+      <div class="page-title">
+        <div class="title-row">
+          <img src="logo_btc_nb.png" alt="" class="title-logo" width="36" height="36" />
+          <h1>Bitcoin Reserve</h1>
+        </div>
+        <p class="tagline">Proof of reserves — Bitcoin address, balance, and transactions</p>
+      </div>
+      <main>
+        <section class="reserve-card" id="bitcoin-section" aria-labelledby="btc-heading">
+          <div class="card-header-row">
+            <img src="logo_btc_nb.png" alt="" class="panel-title-icon" width="24" height="24" />
+            <h2 id="btc-heading">Bitcoin</h2>
+            <button type="button" class="btn" id="btc-refresh" title="Refresh balance and transactions">Refresh</button>
+          </div>
+          <p class="sats-note">100,000,000 Satoshis = 1 Bitcoin</p>
+          <div class="balance-row">
+            <span class="balance-main" id="btc-balance">—</span>
+          </div>
+          <div class="addr-qr" id="btc-addr-qr"></div>
+          <div id="btc-explorer"></div>
+          <div class="proof-box" id="btc-proof"></div>
+          <div class="tx-table-wrap">
+            <p class="sats-note" style="margin-bottom:0.5rem;">Recent transactions (most recent first)</p>
+            <div id="btc-tx-loading" class="loading">Loading…</div>
+            <table class="tx-table" id="btc-tx-table" style="display:none;">
+              <thead><tr><th>Transaction</th><th>Date</th></tr></thead>
+              <tbody id="btc-tx-body"></tbody>
+            </table>
+            <div class="pagination" id="btc-pagination" style="display:none;"></div>
+          </div>
+        </section>
+      </main>
+      <footer style="width:100%; max-width:52rem;">
+        <a href="index.html">Solana Agent</a> · Bitcoin Reserve
+      </footer>
+    </div>
+
+    <script>
+      const API = "/api";
+      const ROWS_PER_PAGE = 10;
+      const MEMPOOL_BASE = "https://mempool.space";
+
+      function qrUrl(addr) {
+        return "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + encodeURIComponent(addr);
+      }
+      const COPY_ICON_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg>";
+      function addrWithCopyHtml(addr) {
+        return "<div class=\"addr-row\"><span class=\"addr-text\">" + escapeHtml(addr) + "</span><button type=\"button\" class=\"addr-copy-btn\" title=\"Copy address\" aria-label=\"Copy address\" data-address=\"" + escapeHtml(addr) + "\">" + COPY_ICON_SVG + "</button></div>";
+      }
+
+      function formatBtcDisplay(btc) {
+        if (!btc) return "—";
+        const sats = btc.balanceSat != null ? Number(btc.balanceSat) : btc.balanceBtc != null ? Math.round(Number(btc.balanceBtc) * 1e8) : null;
+        if (sats == null || Number.isNaN(sats)) return "—";
+        const btcVal = sats / 1e8;
+        return sats.toLocaleString() + " sats (" + btcVal.toFixed(8) + " BTC)";
+      }
+      function formatDate(ts) {
+        if (ts == null) return "—";
+        return new Date(ts * 1000).toLocaleString();
+      }
+      function paginate(arr, page) {
+        const start = (page - 1) * ROWS_PER_PAGE;
+        return arr.slice(start, start + ROWS_PER_PAGE);
+      }
+      function renderPagination(containerId, currentPage, totalPages, onPage) {
+        const el = document.getElementById(containerId);
+        if (!el || totalPages <= 1) { if (el) el.style.display = "none"; return; }
+        el.style.display = "flex";
+        el.innerHTML = "";
+        const prev = document.createElement("button");
+        prev.textContent = "Previous";
+        prev.disabled = currentPage <= 1;
+        prev.onclick = () => onPage(currentPage - 1);
+        el.appendChild(prev);
+        const span = document.createElement("span");
+        span.textContent = "Page " + currentPage + " of " + totalPages;
+        el.appendChild(span);
+        const next = document.createElement("button");
+        next.textContent = "Next";
+        next.disabled = currentPage >= totalPages;
+        next.onclick = () => onPage(currentPage + 1);
+        el.appendChild(next);
+      }
+      function escapeHtml(s) {
+        const div = document.createElement("div");
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      async function loadReserves() {
+        const res = await fetch(API + "/reserves");
+        if (!res.ok) return null;
+        return res.json();
+      }
+      async function loadProof() {
+        const res = await fetch(API + "/proof");
+        if (!res.ok) return null;
+        return res.json();
+      }
+      async function loadBtcTxs() {
+        const res = await fetch(API + "/transactions/bitcoin");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.transactions || [];
+      }
+
+      let btcTxs = [], btcPage = 1;
+      function renderBtcTable() {
+        const body = document.getElementById("btc-tx-body");
+        const table = document.getElementById("btc-tx-table");
+        const loading = document.getElementById("btc-tx-loading");
+        const totalPages = Math.max(1, Math.ceil(btcTxs.length / ROWS_PER_PAGE));
+        const page = Math.min(btcPage, totalPages);
+        const rows = paginate(btcTxs, page);
+        loading.style.display = "none";
+        if (btcTxs.length === 0) {
+          body.innerHTML = "<tr><td colspan=\"2\">No transactions</td></tr>";
+        } else {
+          body.innerHTML = rows.map((tx) =>
+            "<tr><td><a href=\"" + MEMPOOL_BASE + "/tx/" + tx.txid + "\" target=\"_blank\" rel=\"noopener\">" + tx.txid.slice(0, 16) + "…</a></td><td>" + formatDate(tx.blockTime) + "</td></tr>"
+          ).join("");
+          renderPagination("btc-pagination", page, totalPages, (p) => { btcPage = p; renderBtcTable(); });
+        }
+        table.style.display = "table";
+      }
+
+      async function refreshBitcoin() {
+        const btn = document.getElementById("btc-refresh");
+        const loading = document.getElementById("btc-tx-loading");
+        const table = document.getElementById("btc-tx-table");
+        if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+        if (loading) loading.style.display = "block";
+        if (table) table.style.display = "none";
+        try {
+          const [reserves, proof, btcList] = await Promise.all([loadReserves(), loadProof(), loadBtcTxs()]);
+          const btc = reserves?.bitcoin;
+          if (btc?.address) {
+            document.getElementById("btc-balance").textContent = formatBtcDisplay(btc);
+            document.getElementById("btc-addr-qr").innerHTML =
+              "<img src=\"" + qrUrl(btc.address) + "\" alt=\"BTC address QR\" />" + addrWithCopyHtml(btc.address);
+            document.getElementById("btc-explorer").innerHTML =
+              "<a class=\"btn\" href=\"" + MEMPOOL_BASE + "/address/" + btc.address + "\" target=\"_blank\" rel=\"noopener\">View in block explorer (mempool.space)</a>";
+            if (proof?.bitcoin?.signature) {
+              document.getElementById("btc-proof").innerHTML =
+                "<div class=\"label\">Proof of ownership (signed message)</div><div class=\"value\" style=\"margin-bottom:0.5rem;\">" + escapeHtml(proof.message) + "</div><div class=\"label\">Signature (base64)</div><div class=\"value\">" + escapeHtml(proof.bitcoin.signature) + "</div>";
+            } else {
+              document.getElementById("btc-proof").innerHTML = "<span class=\"error\">Proof of ownership not available.</span>";
+            }
+          } else {
+            document.getElementById("btc-balance").textContent = "—";
+          }
+          btcTxs = btcList || [];
+          renderBtcTable();
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+        }
+      }
+
+      document.addEventListener("click", (e) => {
+        const btn = e.target?.closest(".addr-copy-btn");
+        if (!btn) return;
+        const addr = btn.getAttribute("data-address");
+        if (!addr) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(addr).then(() => {
+            const origTitle = btn.getAttribute("title");
+            btn.setAttribute("title", "Copied!");
+            btn.disabled = true;
+            setTimeout(() => { btn.disabled = false; btn.setAttribute("title", origTitle || "Copy address"); }, 1500);
+          });
+        }
+      });
+
+      document.getElementById("btc-refresh").addEventListener("click", refreshBitcoin);
+      refreshBitcoin();
+    </script>
+  </body>
+</html>
