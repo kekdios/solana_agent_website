@@ -54,7 +54,7 @@ All **§10.2 / §11 “offline / cold”** language below is the **production ta
 
 | Priority | Component | What it is |
 |----------|-----------|------------|
-| **P0 — gate** | **Receiving** | User/treasury **inbound**: USDC/USDT (and paths to ASRY) via website/API — invoices, deposits, single-step acquisition (**§1.2**), confirmations. **Every failure is user-visible.** |
+| **P0 — gate** | **Receiving** | User/treasury **inbound**: USDC/USDT (and paths to ASRY) via website/API — deposits, single-step acquisition (**§1.2**), confirmations. A **0.05% fee** is held back from each USDC/USDT receive. **Every failure is user-visible.** |
 | **P0 — gate** | **Sending** | **Outbound**: USDC (yield, refunds, treasury sends), ASRY if applicable — whatever users/agents depend on **leaving** treasury control through the exposed stack. **Every failure is user-visible.** |
 | **P1** | **On-chain smart contract(s)** | Next after P0: programs that **encode rules** (distributor, merkle/claim, pause, optional swap wrapper) — **verifiable state**, not DB-only. Still critical, but **secondary** to “money in / money out” actually working. |
 

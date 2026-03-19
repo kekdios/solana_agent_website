@@ -18,7 +18,6 @@ All files under `website/` excluding `node_modules/` and `.git/`:
 | `db/README.md` | 1560 | No |
 | `db/schema.sql` | 3666 | Yes |
 | `deploy-website-to-droplet.sh` | 4175 | No |
-| `explorer.html` | 36349 | Yes |
 | `icon_dock.png` | 27357 | Yes |
 | `index.html` | — | Yes |
 | `asry.html` | — | Yes |
@@ -45,7 +44,6 @@ From `deploy-website-to-droplet.sh` (SCP targets):
 - `index.html`
 - `asry.html`
 - `proof-of-reserves.html`
-- `explorer.html`
 - `api.html`
 - `solanaagent_rec.png`
 - `loading-animation.gif`

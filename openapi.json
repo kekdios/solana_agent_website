@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Solana Agent Website API",
-    "description": "Agent-native API for swap (SOL→BTC) and token creation. All responses are JSON. Quickstart: GET openapi.json → choose flow (swap or token) → follow deterministic steps → poll status if needed. Rate limits: LI.FI ~200 req/2h; swap min from GET /api/swap/min. Poll status endpoints instead of guessing.",
+    "description": "Agent-native API for swap (SOL→BTC). All responses are JSON. Quickstart: GET openapi.json → follow swap flow → poll status if needed. Rate limits: LI.FI ~200 req/2h; swap min from GET /api/swap/min. Poll status endpoints instead of guessing.",
     "version": "1.0.0"
   },
   "servers": [{ "url": "https://www.solanaagent.app", "description": "Production" }],
@@ -132,167 +132,6 @@
         }
       }
     },
-    "/api/invoices": {
-      "post": {
-        "summary": "Create invoice for token creation (step 1)",
-        "operationId": "invoiceCreate",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["name", "symbol", "creator_address"],
-                "properties": {
-                  "name": { "type": "string" },
-                  "symbol": { "type": "string" },
-                  "decimals": { "type": "integer", "minimum": 0, "maximum": 9, "default": 9 },
-                  "supply": { "type": "string", "default": "0" },
-                  "description": { "type": "string" },
-                  "creator_address": { "type": "string", "description": "SOL address to receive minted supply" },
-                  "revoke_freeze_authority": { "type": "boolean", "default": false },
-                  "revoke_mint_authority": { "type": "boolean", "default": false },
-                  "revoke_update_authority": { "type": "boolean", "default": false },
-                  "metaplex_metadata": { "type": "boolean", "default": false }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Invoice created; pay amount SOL to address, then POST /api/invoices/confirm",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["status", "invoice_id", "amount", "currency", "address"],
-                  "properties": {
-                    "status": { "type": "string", "enum": ["pending_payment"] },
-                    "invoice_id": { "type": "string", "format": "uuid" },
-                    "treasury_address": { "type": "string" },
-                    "address": { "type": "string", "description": "Same as treasury_address; send SOL here" },
-                    "amount": { "type": "number", "description": "Fee in SOL" },
-                    "fee_sol": { "type": "number" },
-                    "fee_lamports": { "type": "integer" },
-                    "currency": { "type": "string", "enum": ["SOL"] },
-                    "message": { "type": "string" },
-                    "created_at": { "type": "string", "format": "date-time" }
-                  }
-                }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
-        }
-      }
-    },
-    "/api/invoices/{id}": {
-      "get": {
-        "summary": "Get invoice status",
-        "operationId": "invoiceGet",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "invoice_id": { "type": "string" },
-                    "status": { "type": "string", "enum": ["pending", "completed"] },
-                    "fee_sol": { "type": "number" },
-                    "token_id": { "type": "integer", "nullable": true },
-                    "payment_tx_signature": { "type": "string", "nullable": true },
-                    "paid_at": { "type": "string", "nullable": true },
-                    "completed_at": { "type": "string", "nullable": true }
-                  }
-                }
-              }
-            }
-          },
-          "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
-    },
-    "/api/invoices/confirm": {
-      "post": {
-        "summary": "Confirm invoice payment (step 3); idempotent for already completed",
-        "operationId": "invoiceConfirm",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["invoice_id", "tx_signature"],
-                "properties": {
-                  "invoice_id": { "type": "string" },
-                  "invoiceId": { "type": "string" },
-                  "tx_signature": { "type": "string" },
-                  "txSignature": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Completed or already completed (safe to retry)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": { "type": "boolean" },
-                    "status": { "type": "string", "enum": ["completed"] },
-                    "token_id": { "type": "integer" },
-                    "mint_address": { "type": "string" },
-                    "message": { "type": "string" }
-                  }
-                }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
-        }
-      }
-    },
-    "/api/tokens/{id}": {
-      "get": {
-        "summary": "Get token by ID (e.g. after invoice completed)",
-        "operationId": "tokenGet",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": { "type": "integer" },
-                    "name": { "type": "string" },
-                    "symbol": { "type": "string" },
-                    "mint_address": { "type": "string" },
-                    "creator_address": { "type": "string" }
-                  }
-                }
-              }
-            }
-          },
-          "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
-    },
     "/api/reserves": {
       "get": {
         "summary": "Reserve addresses and balances",
@@ -364,13 +203,6 @@
     }
   },
   "x-flows": {
-    "token_creation": [
-      "1. POST /api/invoices with name, symbol, creator_address (and optional decimals, supply, etc.)",
-      "2. Response: status=pending_payment, invoice_id, address, amount, currency=SOL",
-      "3. Send amount SOL to address (treasury)",
-      "4. POST /api/invoices/confirm with invoice_id and tx_signature of the payment",
-      "5. Response: status=completed, token_id, mint_address. Optionally GET /api/tokens/{token_id}"
-    ],
     "swap_sol_to_btc": [
       "1. GET /api/swap/min → check balance and minimum",
       "2. GET /api/swap/estimate?amountSol=X → get estimatedBtcSats",

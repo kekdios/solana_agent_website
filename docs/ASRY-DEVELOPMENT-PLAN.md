@@ -26,20 +26,20 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 
 | Flow | Description | Exposed via |
 |------|-------------|-------------|
-| **USDC → treasury** | User pays USDC to a published address; system detects and records (invoice, swap, or direct). | API + (optional) webhook / polling |
-| **USDT → treasury** | Same for USDT; may normalize to USDC per policy §3.3. | Same |
+| **USDC → treasury** | User pays USDC to a published address; system detects and records (swap or direct). A **0.05% fee** is held back from each receive. | API + (optional) webhook / polling |
+| **USDT → treasury** | Same for USDT; may normalize to USDC per policy §3.3. A **0.05% fee** is held back from each receive. | Same |
 | **USDC → ASRY (single-step)** | User gets ASRY in **one tx** (e.g. swap against ASRY/USDC pool per §1.2). | API: quote + build swap ix; or frontend that submits tx |
 | **Receive USDT or USDC** | `receiveStableToTreasury`. **USDT** → Jupiter → USDC. **USDC** → **SPL transfer only** to `treasuryUsdcAta` (no Jupiter); confirm balance or use `buildUnsignedUsdcTransferToTreasury` for payer tx. | Script / API |
 | **USDT → ASRY (single-step)** | One tx: USDT→USDC→ASRY (wrapper program or CPI) per §1.2. | Same when wrapper exists |
-| **Invoice / deposit confirmation** | Create invoice → user pays → confirm payment and update state. | `POST/GET /api/invoices` (or equivalent) |
+| **Deposit confirmation** | User pays to treasury address → confirm payment and update state (no invoice API). | Confirm pipeline / API |
 
 ### 2.2 Deliverables
 
-- [ ] **Receiving API** — Create invoice / deposit address; optional expiry and amount.
+- [ ] **Receiving API** — Deposit address (published); optional expiry and amount. **0.05% receive fee** on USDC/USDT (held back from each transaction).
 - [ ] **Confirmation pipeline** — On-chain or backend check that payment landed; idempotent confirmation; store tx sig + amount.
 - [ ] **Single-step swap (USDC→ASRY)** — Endpoint or client that returns **one** swap instruction (or serialized tx) for the **published ASRY/USDC pool**; no multi-hop.
 - [ ] **Idempotency** — Same idempotency key / id never double-counts or double-confirms.
-- [ ] **Errors** — Structured error codes (e.g. `invoice_expired`, `payment_underpaid`, `tx_not_found`); no silent failure.
+- [ ] **Errors** — Structured error codes (e.g. `payment_underpaid`, `tx_not_found`); no silent failure.
 - [ ] **Logging + metrics** — Every receive attempt (success/fail) log; counter or metric for success rate and latency.
 
 ### 2.3 Out of scope for P0 (can follow later)
@@ -84,7 +84,7 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 |--------|-------------------|-------------|
 | **Receive success rate** | e.g. ≥ 99% of **confirmed** payments correctly credited within N minutes. | Numerator: credited; denominator: on-chain confirmed to treasury address. |
 | **Send success rate** | e.g. ≥ 99% of **intended** payouts result in confirmed tx within M minutes. | Numerator: confirmed tx; denominator: payout attempts. |
-| **Stuck / unrecoverable** | Zero or bounded (e.g. &lt; 0.1% of volume) with manual runbook. | Count of payouts/invoices stuck &gt; 24h without resolution. |
+| **Stuck / unrecoverable** | Zero or bounded (e.g. &lt; 0.1% of volume) with manual runbook. | Count of payouts/receives stuck &gt; 24h without resolution. |
 
 **Abandon-ship (policy §0.2):** After **reasonable hardening** (e.g. 2–4 weeks of iteration, retries, and fixes), if P0 **still** exceeds error budget or produces **unacceptable** stuck states / support load → **stop ASRY rollout**. Do not add P1 or more features on top of a broken receive/send rail.
 
@@ -140,7 +140,7 @@ website/
   routes/
     asry/
       health.cjs           # GET /api/asry/health
-      receive.cjs          # invoice, confirm, swap quote
+      receive.cjs          # confirm, swap quote
       send.cjs             # payout, refund (bootstrap: server signs)
   lib/
     asry/
@@ -163,7 +163,7 @@ Programs (P1) can live in `programs/` or a separate repo; link from this doc.
 | Layer | What to test |
 |-------|----------------|
 | **Unit** | Confirm logic (amount matching, idempotency keys, error codes). |
-| **Integration** | With devnet (or testnet): create invoice → pay with real tx → confirm; send USDC → confirm tx. |
+| **Integration** | With devnet (or testnet): send USDC/USDT to treasury → confirm tx; send USDC (payout) → confirm tx. |
 | **E2E** | Full receive path (e.g. swap USDC→ASRY) and send path (payout) once; measure success rate over N runs. |
 | **Load (optional)** | Sustained receive/send volume to find timeouts and bottlenecks. |
 
