@@ -162,7 +162,6 @@
       <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
       <a href="index.html">Home</a>
       <a href="asry.html" class="active">ASRY</a>
-      <a href="explorer.html">Token Explorer</a>
       <a href="proof-of-reserves.html">Proof of Reserves</a>
       <a href="api.html">API</a>
       <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
@@ -189,7 +188,7 @@
             <h2 id="asry-heading"><img src="icon_asry_nb.png" alt="ASRY" class="panel-title-icon" width="60" height="60" /> ASRY</h2>
             <button type="button" class="btn" id="asry-refresh">Refresh</button>
           </div>
-          <p class="sats-note">On-chain details load from the Token Repository when ASRY is listed. This token is <strong>not</strong> priced or backed against BTC; it is separate from ABSR.</p>
+          <p class="sats-note">On-chain details load from the server (ASRY_MINT_ADDRESS). This token is <strong>not</strong> priced or backed against BTC; it is separate from ABSR.</p>
           <div class="arb-token-info" id="asry-token-info">
             <div class="summary-item">
               <span class="summary-label">ASRY token (mint)</span>
@@ -239,7 +238,7 @@
             <strong>Purpose:</strong> Agent Strategic Reserve Yield — described as an agent APY-oriented token. Mint authority and metadata settings follow how the token was created (invoice flow or other issuance).
           </p>
           <p>
-            Verify the mint and holder balances on <a class="link-accent" href="https://explorer.solana.com" target="_blank" rel="noopener noreferrer">Solana Explorer</a>. When the token is listed in our <a class="link-accent" href="explorer.html">Token Explorer</a>, mint and creator addresses appear above automatically.
+            Verify the mint and holder balances on <a class="link-accent" href="https://explorer.solana.com" target="_blank" rel="noopener noreferrer">Solana Explorer</a>. Mint and creator addresses appear above when ASRY_MINT_ADDRESS is set on the server.
           </p>
         </div>
       </main>
@@ -279,21 +278,6 @@
         if (!res.ok) return null;
         const data = await res.json();
         return data.mint_address ? data : null;
-      }
-
-      async function loadAsryFromApi() {
-        const res = await fetch(API + "/tokens");
-        if (!res.ok) return null;
-        const data = await res.json();
-        const tokens = data.tokens || [];
-        const asry = tokens.filter(function (t) {
-          return (t.symbol || "").toUpperCase() === "ASRY";
-        }).sort(function (a, b) {
-          const ta = new Date(a.created_at || 0).getTime();
-          const tb = new Date(b.created_at || 0).getTime();
-          return tb - ta;
-        })[0];
-        return asry || null;
       }
 
       async function loadAsryTransactions() {
@@ -371,7 +355,7 @@
       }
 
       function applyDefaults() {
-        document.getElementById("asry-mint-wrap").innerHTML = "<span id=\"asry-mint\">— (list ASRY in Token Explorer or set ASRY_MINT_ADDRESS to show mint)</span>";
+        document.getElementById("asry-mint-wrap").innerHTML = "<span id=\"asry-mint\">— (set ASRY_MINT_ADDRESS on the server to show mint)</span>";
         document.getElementById("asry-creator-wrap").innerHTML = "<span id=\"asry-creator\">—</span>";
         document.getElementById("asry-symbol").textContent = "ASRY";
         document.getElementById("asry-decimals").textContent = String(DEFAULT_DECIMALS);
@@ -388,22 +372,21 @@
         if (txLoading) txLoading.style.display = "block";
         if (txTable) txTable.style.display = "none";
         try {
-          const [asryInfo, tokenFromList, txList] = await Promise.all([loadAsryInfo(), loadAsryFromApi(), loadAsryTransactions()]);
+          const [asryInfo, txList] = await Promise.all([loadAsryInfo(), loadAsryTransactions()]);
           asryTxs = txList || [];
           asryPage = 1;
           renderAsryTable();
-          const t = tokenFromList || null;
-          const mint = (asryInfo && asryInfo.mint_address) ? asryInfo.mint_address.trim() : (t && (t.mint_address || "").trim());
-          const creator = (asryInfo && asryInfo.creator_address) ? asryInfo.creator_address.trim() : (t && (t.creator_address || "").trim());
-          const supplyRaw = (asryInfo && asryInfo.supply != null) ? String(asryInfo.supply).replace(/,/g, "") : (t && t.supply != null ? String(t.supply).replace(/,/g, "") : null);
-          const decimals = (asryInfo && asryInfo.decimals != null) ? asryInfo.decimals : (t && t.decimals != null ? t.decimals : DEFAULT_DECIMALS);
+          const mint = (asryInfo && asryInfo.mint_address) ? asryInfo.mint_address.trim() : "";
+          const creator = (asryInfo && asryInfo.creator_address) ? asryInfo.creator_address.trim() : "";
+          const supplyRaw = (asryInfo && asryInfo.supply != null) ? String(asryInfo.supply).replace(/,/g, "") : null;
+          const decimals = (asryInfo && asryInfo.decimals != null) ? asryInfo.decimals : DEFAULT_DECIMALS;
 
           document.getElementById("asry-mint-wrap").innerHTML = mint ? linkAddr(mint, mint) : "—";
           document.getElementById("asry-creator-wrap").innerHTML = creator ? linkAddr(creator, creator) : "—";
-          document.getElementById("asry-symbol").textContent = (t && t.symbol) ? (t.symbol || "ASRY").toUpperCase() : "ASRY";
+          document.getElementById("asry-symbol").textContent = "ASRY";
           document.getElementById("asry-decimals").textContent = String(decimals);
           document.getElementById("asry-supply").textContent = supplyRaw ? Number(supplyRaw).toLocaleString() : "—";
-          document.getElementById("asry-desc").textContent = (t && t.description) ? t.description : DEFAULT_DESC;
+          document.getElementById("asry-desc").textContent = DEFAULT_DESC;
 
           var supplyLabelEl = document.getElementById("asry-supply") && document.getElementById("asry-supply").closest(".summary-item") && document.getElementById("asry-supply").closest(".summary-item").querySelector(".summary-label");
           if (supplyLabelEl) {
@@ -412,10 +395,10 @@
 
           msg.style.display = "none";
           msg.textContent = "";
-          if (!mint && !t) {
+          if (!mint) {
             msg.style.display = "block";
             msg.className = "sats-note";
-            msg.innerHTML = "ASRY not found. Set <strong>ASRY_MINT_ADDRESS</strong> on the server or list ASRY in Token Explorer.";
+            msg.innerHTML = "ASRY not found. Set <strong>ASRY_MINT_ADDRESS</strong> on the server.";
           } else if (asryInfo && asryInfo.error) {
             msg.style.display = "block";
             msg.className = "sats-note";

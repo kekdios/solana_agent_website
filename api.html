@@ -79,7 +79,6 @@
       <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
       <a href="index.html">Home</a>
       <a href="asry.html">ASRY</a>
-      <a href="explorer.html">Token Explorer</a>
       <a href="proof-of-reserves.html">Proof of Reserves</a>
       <a href="api.html" class="active">API</a>
       <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
@@ -95,68 +94,29 @@
     <div class="site-main">
       <div class="api-content">
         <h1>API Reference</h1>
-        <p class="tagline">HTTP APIs available to agents and the Proof of Reserves / Token Explorer frontends. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
+        <p class="tagline">HTTP APIs available to agents and the Proof of Reserves frontend. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
 
         <p style="margin:1rem 0; padding:0.75rem 1rem; background:rgba(52,211,153,0.12); border-left:4px solid #34d399; border-radius:0 0.5rem 0.5rem 0;"><strong>If you're an agent, start here (MCP):</strong> Connect the <a href="#mcp" style="color:#34d399;">MCP server</a> (<code>npm run mcp</code>) for typed tools and discovery—no HTTP wiring. Or use <code>GET /api/openapi.json</code> for the full schema.</p>
 
         <p><strong>Machine-readable schema:</strong> <a href="/api/openapi.json" style="color:#34d399;">GET /api/openapi.json</a> — OpenAPI 3.0 spec (endpoints, request/response schemas, error codes). Use this for agent tooling and codegen.</p>
 
         <div class="agent-actions" style="margin:1.5rem 0; padding:1rem 1.25rem; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.3); border-radius:0.75rem;">
-          <p style="margin:0 0 0.5rem; font-weight:600; color:#e2e8f0;">For agents: two main actions</p>
-          <ol style="margin:0; padding-left:1.25rem; color:#cbd5e1;">
-            <li><strong>Swap (SOL → BTC):</strong> <code>GET /api/swap/min</code> and <code>GET /api/swap/estimate</code>, then <code>POST /api/swap/create</code>. You get the tx id and can disconnect; poll <code>GET /api/swap/status/:id</code> only if you need completion status.</li>
-            <li><strong>Create your own token:</strong> <code>POST /api/invoices</code> with token details → receive invoice (fee in SOL) → pay to treasury → <code>POST /api/invoices/confirm</code> with <code>invoice_id</code> and <code>tx_signature</code> → we create the SPL token and add it to the listing.</li>
-          </ol>
+          <p style="margin:0 0 0.5rem; font-weight:600; color:#e2e8f0;">For agents: swap (SOL → BTC)</p>
+          <p style="margin:0; color:#cbd5e1;"><strong>Swap:</strong> <code>GET /api/swap/min</code> and <code>GET /api/swap/estimate</code>, then <code>POST /api/swap/create</code>. You get the tx id and can disconnect; poll <code>GET /api/swap/status/:id</code> only if you need completion status.</p>
         </div>
 
         <h2>Agent quickstart (linear path)</h2>
         <p>Fastest way for an agent to succeed:</p>
         <ol style="padding-left:1.25rem;">
           <li><strong>Discover:</strong> <code>GET /api/openapi.json</code> (or connect the MCP server with <code>npm run mcp</code>) to get endpoints and schemas.</li>
-          <li><strong>Choose flow:</strong> Swap SOL→BTC or create token (see “For agents: two main actions” above).</li>
-          <li><strong>Execute:</strong> Follow the deterministic steps for that flow (tables and curl examples below).</li>
-          <li><strong>Status:</strong> Poll the status endpoint (<code>/api/swap/status/:id</code> or <code>/api/invoices/:id</code>) only if you need completion; otherwise you can disconnect after receiving the tx id or invoice.</li>
+          <li><strong>Execute:</strong> Follow the swap flow (table and curl examples below).</li>
+          <li><strong>Status:</strong> Poll <code>GET /api/swap/status/:id</code> only if you need completion; otherwise you can disconnect after receiving the tx id.</li>
         </ol>
 
         <h2>Deterministic flows (step-by-step)</h2>
         <p>Agents should follow these state transitions; poll status endpoints instead of guessing.</p>
 
-        <h3>Flow 1: Token creation</h3>
-        <table style="width:100%; max-width:42rem;">
-          <tr><th>Step</th><th>Action</th></tr>
-          <tr><td>1</td><td><code>POST /api/invoices</code> — body: <code>{ "name", "symbol", "creator_address" }</code> (optional: decimals, supply, description, revoke_*).</td></tr>
-          <tr><td>2</td><td>Response: <code>status: "pending_payment"</code>, <code>invoice_id</code>, <code>address</code> (treasury), <code>amount</code> (SOL), <code>currency: "SOL"</code>.</td></tr>
-          <tr><td>3</td><td>Send <code>amount</code> SOL to <code>address</code> (user's wallet signs the tx).</td></tr>
-          <tr><td>4</td><td><code>POST /api/invoices/confirm</code> — body: <code>{ "invoice_id", "tx_signature" }</code>. Idempotent: already completed returns same success.</td></tr>
-          <tr><td>5</td><td>Response: <code>status: "completed"</code>, <code>token_id</code>, <code>mint_address</code>. Optional: <code>GET /api/tokens/{token_id}</code>.</td></tr>
-        </table>
-        <pre><code># Step 1 – create invoice
-curl -s -X POST https://www.solanaagent.app/api/invoices \
-  -H "Content-Type: application/json" \
-  -d '{"name":"My Token","symbol":"MTK","creator_address":"YOUR_SOL_ADDRESS"}'
-
-# Step 4 – confirm (after paying amount SOL to address)
-curl -s -X POST https://www.solanaagent.app/api/invoices/confirm \
-  -H "Content-Type: application/json" \
-  -d '{"invoice_id":"UUID-FROM-STEP-1","tx_signature":"SOLANA_TX_SIG"}'</code></pre>
-        <p><strong>Full end-to-end example (token creation):</strong> One complete transcript agents can mimic.</p>
-        <pre><code># Request 1 – create invoice
-POST /api/invoices
-{"name":"AgentCoin","symbol":"AGT","creator_address":"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"}
-
-# Response 1
-{"status":"pending_payment","invoice_id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","address":"TREASURY_SOL_ADDRESS","amount":0.05,"currency":"SOL","fee_sol":0.05,"message":"Pay this amount..."}
-
-# (User pays 0.05 SOL to TREASURY_SOL_ADDRESS; tx signature: 5abc...)
-
-# Request 2 – confirm
-POST /api/invoices/confirm
-{"invoice_id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","tx_signature":"5abc123..."}
-
-# Response 2 (final)
-{"ok":true,"status":"completed","token_id":42,"mint_address":"TokenMint111111111111111111111111111","message":"Token created and listed"}</code></pre>
-
-        <h3>Flow 2: Swap SOL → BTC</h3>
+        <h3>Flow 1: Swap SOL → BTC</h3>
         <table style="width:100%; max-width:42rem;">
           <tr><th>Step</th><th>Action</th></tr>
           <tr><td>1</td><td><code>GET /api/swap/min</code> — returns <code>minAmountSol</code>, <code>balanceSol</code>.</td></tr>
@@ -177,8 +137,6 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
         <p>All errors return JSON: <code>{ "error_code", "error", "action?" }</code>. Example: <code>{ "error_code": "INSUFFICIENT_BALANCE", "error": "Insufficient SOL balance (including fee reserve)", "action": "top_up_wallet" }</code>.</p>
         <h3>Safe retry guidance</h3>
         <ul>
-          <li><strong>POST /api/invoices/confirm</strong> — Safe to retry. If the invoice is already completed, you get the same success response (idempotent). Use this on timeouts or network errors.</li>
-          <li><strong>POST /api/invoices</strong> — Do not retry with the same payload expecting the same invoice. Each call creates a new invoice. If you need to retry, use the new <code>invoice_id</code> and pay that invoice.</li>
           <li><strong>POST /api/swap/create</strong> — Not idempotent; each call initiates a new swap. Only retry if the previous request failed (e.g. 502) and you did not receive an <code>id</code>.</li>
         </ul>
 
@@ -190,7 +148,6 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
         <p>Agents should respect these boundaries:</p>
         <ul>
           <li><strong>Swap (LI.FI):</strong> No API key required; LI.FI allows ~200 requests per 2 hours per client. Optional key at <a href="https://li.fi" target="_blank" rel="noopener noreferrer">li.fi</a> for higher limits. Minimum SOL amount: use <code>GET /api/swap/min</code> (typically 0.001 SOL); maximum is effectively the reserve balance.</li>
-          <li><strong>Token creation (invoices):</strong> No per-agent limit; fee is computed per invoice (estimated on-chain cost + margin). Decimals 0–9; supply is a string (raw units).</li>
           <li><strong>BTC settlement time:</strong> After <code>POST /api/swap/create</code>, Bitcoin can take several minutes up to a few hours; poll <code>GET /api/swap/status/:id</code> for <code>finished</code> or <code>failed</code>.</li>
         </ul>
 
@@ -263,75 +220,18 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
         <p>Poll LI.FI transfer status. <code>:id</code> is the Solana transaction signature.</p>
         <p><strong>Response (200):</strong> <code>{ "id", "status", "amountSol", "btcSats" }</code>. <code>status</code>: <code>waiting</code>, <code>finished</code>, or <code>failed</code>.</p>
 
-        <h2>6. Invoices (agent token creation)</h2>
-        <p>Agent submits token details → receives an invoice (fee in SOL). After paying the invoice to the treasury, the server creates the SPL token and adds it to the listing.</p>
-        <p><strong>Success guarantee (token creation):</strong> After you call <code>POST /api/invoices/confirm</code> with a valid payment tx, the token is created and listed within a few seconds to under a minute (one Solana mint tx). Response includes <code>token_id</code> and <code>mint_address</code>.</p>
-
-        <h3><span class="method post">POST</span> <span class="endpoint">/api/invoices</span></h3>
-        <p>Create an invoice for token creation.</p>
-        <p><strong>Body:</strong></p>
-        <table>
-          <tr><th>Parameter</th><th>Type</th><th>Required</th></tr>
-          <tr><td><code>name</code></td><td>string</td><td>Yes</td></tr>
-          <tr><td><code>symbol</code></td><td>string</td><td>Yes</td></tr>
-          <tr><td><code>decimals</code></td><td>number (0–9)</td><td>No (default 9)</td></tr>
-          <tr><td><code>supply</code></td><td>string</td><td>No (default "0")</td></tr>
-          <tr><td><code>description</code></td><td>string</td><td>No</td></tr>
-          <tr><td><code>creator_address</code></td><td>string</td><td>Yes (SOL address to receive minted supply)</td></tr>
-          <tr><td><code>revoke_freeze_authority</code></td><td>boolean</td><td>No</td></tr>
-          <tr><td><code>revoke_mint_authority</code></td><td>boolean</td><td>No</td></tr>
-          <tr><td><code>revoke_update_authority</code></td><td>boolean</td><td>No</td></tr>
-          <tr><td><code>metaplex_metadata</code></td><td>boolean</td><td>No</td></tr>
-        </table>
-        <p><strong>Response (200):</strong> <code>invoice_id</code>, <code>treasury_address</code>, <code>fee_sol</code>, <code>fee_lamports</code>, <code>message</code>, <code>created_at</code>.</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/invoices/:id</span></h3>
-        <p>Get invoice by ID (UUID).</p>
-        <p><strong>Response (200):</strong> Full invoice fields including <code>status</code> (<code>pending</code>, <code>completed</code>), <code>payment_tx_signature</code>, <code>token_id</code>, <code>paid_at</code>, <code>completed_at</code>.</p>
-
-        <h3><span class="method post">POST</span> <span class="endpoint">/api/invoices/confirm</span></h3>
-        <p>Confirm payment: provide invoice ID and the Solana transaction signature that sent <code>fee_sol</code> to the treasury. On success, the server creates the token and lists it.</p>
-        <p><strong>Body:</strong> <code>{ "invoice_id": string, "tx_signature": string }</code> (or <code>invoiceId</code>, <code>txSignature</code>).</p>
-        <p><strong>Response (200):</strong> <code>{ "ok": true, "status": "completed", "token_id", "mint_address", "message" }</code>.</p>
-
-        <h2>7. Tokens &amp; listings</h2>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/tokens</span></h3>
-        <p>List tokens. Optional query: <code>creator</code> (SOL address) to filter by creator.</p>
-        <p><strong>Response (200):</strong> <code>{ "tokens": [ { "id", "name", "symbol", "decimals", "supply", "mint_address", "creator_address", ... }, ... ] }</code></p>
-
-        <h3><span class="method post">POST</span> <span class="endpoint">/api/tokens</span></h3>
-        <p>Create a token record in the database (metadata only; no on-chain mint). Body: <code>name</code>, <code>symbol</code> (required); <code>decimals</code>, <code>supply</code>, <code>description</code>, <code>creator_address</code>, <code>mint_address</code>, <code>revoke_*</code>, <code>metaplex_metadata</code> (optional). Returns the created token. Requires <code>DATABASE_URL</code>.</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/tokens/:id</span></h3>
-        <p>Get a single token by numeric ID.</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings/search</span></h3>
-        <p>Search listed tokens. Query: <code>q</code> (search string, name/symbol).</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings</span></h3>
-        <p>Get listing(s). Query: <code>token_id</code> (optional).</p>
-
-        <h3><span class="method post">POST</span> <span class="endpoint">/api/listings/request</span></h3>
-        <p>Request a listing (e.g. for an existing token). Body includes <code>token_id</code> and other fields; response returns fee and treasury address for payment.</p>
-
-        <h3><span class="method post">POST</span> <span class="endpoint">/api/listings/confirm</span></h3>
-        <p>Confirm listing payment (tx signature). On success the token is listed.</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/listings/ensure-absr</span></h3>
-        <p>Internal: ensure the ABSR token is registered in the tokens table and listed. Returns <code>{ "ok": true }</code> or <code>{ "ok": false, "error": "..." }</code>. Used by the server on startup and by listing search.</p>
-
-        <h2>8. Explorer</h2>
+        <h2>6. Explorer</h2>
 
         <h3><span class="method get">GET</span> <span class="endpoint">/api/explorer/treasury</span></h3>
-        <p>Returns treasury SOL address and optional metadata for the Token Explorer.</p>
+        <p>Returns treasury SOL address.</p>
+        <p><strong>Response (200):</strong> <code>{ "treasury_address": "..." }</code>.</p>
 
-        <h2 id="mcp">9. MCP server (agent tools)</h2>
+        <h2 id="mcp">7. MCP server (agent tools)</h2>
         <p>An <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">MCP</a> server exposes the same API as tools so agents can discover and call them without hardcoding HTTP. Run <code>npm run mcp</code> (or <code>node mcp-server.cjs</code>) for stdio transport. Set <code>API_BASE_URL</code> to point at a different origin (default: <code>https://www.solanaagent.app</code>).</p>
-        <p><strong>Tools:</strong> <code>get_reserves</code>, <code>swap_min</code>, <code>swap_estimate</code>, <code>swap_create</code>, <code>swap_status</code>, <code>create_token_invoice</code>, <code>get_invoice</code>, <code>confirm_invoice</code>, <code>get_token</code>. All take typed inputs and return JSON.</p>
+        <p><strong>Tools:</strong> <code>get_reserves</code>, <code>swap_min</code>, <code>swap_estimate</code>, <code>swap_create</code>, <code>swap_status</code>. All take typed inputs and return JSON.</p>
         <p><strong>Cursor:</strong> Add to MCP settings (e.g. <code>~/.cursor/mcp.json</code>) to use from Cursor: <code>{ "mcpServers": { "solana-agent-website": { "command": "node", "args": ["/path/to/website/mcp-server.cjs"], "env": { "API_BASE_URL": "https://www.solanaagent.app" } } } }</code></p>
 
-        <h2>10. Errors</h2>
+        <h2>8. Errors</h2>
         <p>Errors are returned with appropriate HTTP status (400, 404, 502, 503) and a JSON body with <code>error_code</code>, <code>error</code>, and optional <code>action</code> (see deterministic flows section).</p>
       </div>
     </div>
