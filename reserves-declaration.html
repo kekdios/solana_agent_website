@@ -15,7 +15,17 @@
       .site-sidebar a { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem; color: #94a3b8; text-decoration: none; width: 100%; text-align: left; transition: background 0.15s, color 0.15s; }
       .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
       .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
-      .site-sidebar .sidebar-version { margin-top: auto; padding: 0.75rem 0.75rem 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-sidebar .sidebar-disclaimer { margin-top: auto; padding: 0.5rem 0.75rem 0; font-size: 0.75rem; }
+      .site-sidebar .sidebar-disclaimer a { color: #64748b; text-decoration: underline; }
+      .site-sidebar .sidebar-disclaimer a:hover { color: #94a3b8; }
+      .site-sidebar .sidebar-version { padding: 0.25rem 0.75rem 0 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .disclaimer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+      .disclaimer-overlay.show { display: flex; }
+      .disclaimer-modal { max-width: 32rem; max-height: 85vh; overflow-y: auto; background: #121214; border: 1px solid #2a2a30; border-radius: 0.75rem; padding: 1.5rem; color: #cbd5e1; font-size: 0.875rem; line-height: 1.6; }
+      .disclaimer-modal h2 { font-size: 1rem; color: #e2e8f0; margin: 0 0 1rem; }
+      .disclaimer-modal p { margin: 0 0 0.75rem; }
+      .disclaimer-modal .disclaimer-close { display: block; margin-top: 1rem; padding: 0.5rem 1rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.5rem; color: #34d399; font-size: 0.875rem; cursor: pointer; }
+      .disclaimer-modal .disclaimer-close:hover { background: #2a2a30; border-color: #34d399; }
       .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
       .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
       .page-title h1 { margin: 0 0 0.25rem; }
@@ -57,14 +67,34 @@
       <a href="reserves-declaration.html" class="active">Declaration</a>
       <a href="proof-of-reserves.html">Proof of Reserves</a>
       <a href="api.html">API</a>
+      <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
       <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
     </aside>
+    <div class="disclaimer-overlay" id="disclaimer-overlay" aria-hidden="true">
+      <div class="disclaimer-modal" role="dialog" aria-labelledby="disclaimer-title">
+        <h2 id="disclaimer-title">Disclaimer</h2>
+        <p>All addresses, balances, and values displayed on this website are derived from real, live on-chain data and reflect actual mainnet Solana (and related) network state. The information and features on this site are functional and are provided for informational and experimental purposes only.</p>
+        <p>Use of this website, including any interaction with mainnet Solana or connected services, is at your sole risk and responsibility. No representation or warranty of any kind—express, implied, or statutory—is made regarding the accuracy, completeness, reliability, or fitness for a particular purpose of the content or services offered.</p>
+        <p>To the maximum extent permitted by applicable law, the operators and contributors of this site disclaim all liability for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising from or in connection with your access to or use of this website or any mainnet activity. You assume full responsibility for your own actions and any resulting outcomes.</p>
+        <p>By using this site, you acknowledge that you have read, understood, and agree to this disclaimer.</p>
+        <button type="button" class="disclaimer-close" id="disclaimer-close">Close</button>
+      </div>
+    </div>
     <script>
       (function() {
         var d = new Date();
         var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         var el = document.getElementById("sidebar-version-date");
         if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+      (function() {
+        var link = document.getElementById("disclaimer-link");
+        var overlay = document.getElementById("disclaimer-overlay");
+        var closeBtn = document.getElementById("disclaimer-close");
+        if (link) link.addEventListener("click", function(e) { e.preventDefault(); overlay.classList.add("show"); overlay.setAttribute("aria-hidden", "false"); });
+        function closeModal() { overlay.classList.remove("show"); overlay.setAttribute("aria-hidden", "true"); }
+        if (closeBtn) closeBtn.addEventListener("click", closeModal);
+        if (overlay) overlay.addEventListener("click", function(e) { if (e.target === overlay) closeModal(); });
       })();
     </script>
     <div class="site-main">
