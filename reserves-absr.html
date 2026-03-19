@@ -29,7 +29,7 @@
       .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
       .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
       .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; }
-      .page-title .title-logo { width: 3.75rem; height: 3.75rem; }
+      .page-title .title-logo { width: 5.625rem; height: 5.625rem; }
       .page-title h1 { margin: 0 0 0.25rem; }
       main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
       .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1.5rem; }
@@ -48,22 +48,37 @@
       .balance-main { font-size: 1.125rem; color: #34d399; font-weight: 600; }
       .btn { display: inline-block; padding: 0.5rem 1rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.5rem; color: #34d399; font-size: 0.875rem; cursor: pointer; }
       .btn:hover { background: #2a2a30; border-color: #34d399; }
-      .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
-      table.tx-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-      table.tx-table th, table.tx-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
-      table.tx-table th { color: #64748b; font-weight: 500; }
-      table.tx-table td { color: #cbd5e1; }
-      table.tx-table a { color: #34d399; text-decoration: none; }
-      table.tx-table a:hover { text-decoration: underline; }
-      .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.875rem; }
-      .pagination button { padding: 0.35rem 0.75rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.375rem; color: #e2e8f0; cursor: pointer; }
-      .pagination button:hover:not(:disabled) { background: #2a2a30; border-color: #34d399; }
-      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-      .pagination span { color: #94a3b8; }
       .loading { color: #64748b; font-style: italic; }
       footer { margin-top: auto; padding: 2rem 1.5rem; font-size: 0.8125rem; color: #64748b; border-top: 1px solid #1e1e24; width: 100%; text-align: center; }
       footer a { color: #34d399; text-decoration: none; }
       footer a:hover { text-decoration: underline; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .page-title, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .page-title .title-logo { width: 4rem; height: 4rem; }
+        .card-header-row { flex-wrap: wrap; align-items: flex-start; }
+        .card-header-row .panel-title-icon { width: 2.75rem; height: 2.75rem; }
+      }
     </style>
   </head>
   <body>
@@ -110,7 +125,7 @@
     <div class="site-main">
       <div class="page-title">
         <div class="title-row">
-          <img src="icon_absr_nb.png" alt="ABSR" class="title-logo" width="60" height="60" />
+          <img src="icon_absr_nb.png" alt="ABSR" class="title-logo" width="90" height="90" />
           <h1>ABSR — Agent Bitcoin Strategic Reserve</h1>
         </div>
         <p class="tagline">1 satoshi = 1 ABSR; supply and USD value from reserve</p>
@@ -155,14 +170,14 @@
               <span class="balance-main" id="arb-absr-usd">—</span>
             </div>
           </div>
-          <div class="tx-table-wrap">
-            <p class="sats-note" style="margin-bottom:0.5rem;">ABSR transactions (most recent first)</p>
-            <div id="arb-tx-loading" class="loading">Loading…</div>
-            <table class="tx-table" id="arb-tx-table" style="display:none;">
-              <thead><tr><th>Transaction</th><th>Type</th><th>Amount (sats)</th><th>Amount (USD)</th><th>Date</th></tr></thead>
-              <tbody id="arb-tx-body"></tbody>
-            </table>
-            <div class="pagination" id="arb-pagination" style="display:none;"></div>
+          <div style="margin-top:1.25rem;">
+            <p class="sats-note" style="margin-bottom:0.5rem;">
+              ABSR transaction history is verified directly on-chain. Use explorer links for the mint account and treasury token account activity.
+            </p>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+              <a class="btn" id="arb-mint-tx-link" target="_blank" rel="noopener">View ABSR mint activity</a>
+              <a class="btn" id="arb-ata-tx-link" target="_blank" rel="noopener">View treasury ATA activity</a>
+            </div>
           </div>
         </section>
       </main>
@@ -173,58 +188,19 @@
 
     <script>
       const API = "/api";
-      const ROWS_PER_PAGE = 10;
       const SOLANA_EXPLORER_BASE = "https://explorer.solana.com";
       const ABSR_MINT_ADDRESS = "BvtyqwRSgrKjX3jUfR7Sq5XmuVKrPEcSTDbLmTCstP1E";
       const ABSR_TREASURY_ATA = "AroLLvUThb9cgNTRF722kP91xse6aWr5ZLggTEbGGu7q";
 
-      function formatDate(ts) {
-        if (ts == null) return "—";
-        return new Date(ts * 1000).toLocaleString();
-      }
       function formatUsd(n) {
         if (n == null || Number.isNaN(n)) return "—";
         return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
-      function paginate(arr, page) {
-        const start = (page - 1) * ROWS_PER_PAGE;
-        return arr.slice(start, start + ROWS_PER_PAGE);
-      }
-      function renderPagination(containerId, currentPage, totalPages, onPage) {
-        const el = document.getElementById(containerId);
-        if (!el || totalPages <= 1) { if (el) el.style.display = "none"; return; }
-        el.style.display = "flex";
-        el.innerHTML = "";
-        const prev = document.createElement("button");
-        prev.textContent = "Previous";
-        prev.disabled = currentPage <= 1;
-        prev.onclick = () => onPage(currentPage - 1);
-        el.appendChild(prev);
-        const span = document.createElement("span");
-        span.textContent = "Page " + currentPage + " of " + totalPages;
-        el.appendChild(span);
-        const next = document.createElement("button");
-        next.textContent = "Next";
-        next.disabled = currentPage >= totalPages;
-        next.onclick = () => onPage(currentPage + 1);
-        el.appendChild(next);
-      }
-      function escapeHtml(s) {
-        const div = document.createElement("div");
-        div.textContent = s;
-        return div.innerHTML;
       }
 
       async function loadArbSummary() {
         const res = await fetch(API + "/arbitrage/summary");
         if (!res.ok) return null;
         return res.json();
-      }
-      async function loadArbTransactions() {
-        const res = await fetch(API + "/arbitrage/transactions");
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.transactions || [];
       }
 
       function updateAbsrSummary(data) {
@@ -241,40 +217,12 @@
         document.getElementById("arb-absr-usd").textContent = absrUsd != null ? formatUsd(absrUsd) : "—";
       }
 
-      let arbTxs = [], arbPage = 1;
-      function renderArbTable() {
-        const body = document.getElementById("arb-tx-body");
-        const table = document.getElementById("arb-tx-table");
-        const loading = document.getElementById("arb-tx-loading");
-        const totalPages = Math.max(1, Math.ceil(arbTxs.length / ROWS_PER_PAGE));
-        const page = Math.min(arbPage, totalPages);
-        const rows = paginate(arbTxs, page);
-        loading.style.display = "none";
-        if (arbTxs.length === 0) {
-          body.innerHTML = "<tr><td colspan=\"5\">No ABSR transactions</td></tr>";
-        } else {
-          body.innerHTML = rows.map((tx) =>
-            "<tr><td>" + (tx.signature ? "<a href=\"" + SOLANA_EXPLORER_BASE + "/tx/" + tx.signature + "\" target=\"_blank\" rel=\"noopener\">" + (tx.signature.slice(0, 12) + "…") + "</a>" : escapeHtml(tx.txId || "—")) +
-            "</td><td>" + escapeHtml(tx.type || "—") + "</td><td>" + (tx.amountSats != null ? Number(tx.amountSats).toLocaleString() : "—") +
-            "</td><td>" + formatUsd(tx.amountUsd) + "</td><td>" + formatDate(tx.blockTime) + "</td></tr>"
-          ).join("");
-          renderPagination("arb-pagination", page, totalPages, (p) => { arbPage = p; renderArbTable(); });
-        }
-        table.style.display = "table";
-      }
-
       async function refreshAbsr() {
         const btn = document.getElementById("arb-refresh");
-        const loading = document.getElementById("arb-tx-loading");
-        const table = document.getElementById("arb-tx-table");
         if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
-        if (loading) loading.style.display = "block";
-        if (table) table.style.display = "none";
         try {
-          const [summary, arbList] = await Promise.all([loadArbSummary(), loadArbTransactions()]);
+          const summary = await loadArbSummary();
           if (summary) updateAbsrSummary(summary);
-          arbTxs = arbList || [];
-          renderArbTable();
         } finally {
           if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
         }
@@ -282,8 +230,12 @@
 
       const mintLink = document.getElementById("arb-mint-link");
       const ataLink = document.getElementById("arb-ata-link");
+      const mintTxLink = document.getElementById("arb-mint-tx-link");
+      const ataTxLink = document.getElementById("arb-ata-tx-link");
       if (mintLink) { mintLink.href = SOLANA_EXPLORER_BASE + "/address/" + ABSR_MINT_ADDRESS; mintLink.textContent = ABSR_MINT_ADDRESS; }
       if (ataLink) { ataLink.href = SOLANA_EXPLORER_BASE + "/address/" + ABSR_TREASURY_ATA; ataLink.textContent = ABSR_TREASURY_ATA; }
+      if (mintTxLink) { mintTxLink.href = SOLANA_EXPLORER_BASE + "/address/" + ABSR_MINT_ADDRESS; }
+      if (ataTxLink) { ataTxLink.href = SOLANA_EXPLORER_BASE + "/address/" + ABSR_TREASURY_ATA; }
 
       document.getElementById("arb-refresh").addEventListener("click", refreshAbsr);
       refreshAbsr();

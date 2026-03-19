@@ -108,7 +108,7 @@ echo ""
 if [ "$PULL" = "1" ]; then
   # Only pull files under /var/www/solana_agent that are in the allowlist (same set deploy script uses).
   # This prevents accidentally pulling anything outside the website directory.
-  ALLOWLIST="index.html asry.html proof-of-reserves.html explorer.html api.html solanaagent_rec.png loading-animation.gif icon_dock.png logo_btc_nb.png api-server.cjs package.json package-lock.json mint-absr-to-reserve.cjs run-daily-absr-mint.sh db/schema.sql"
+  ALLOWLIST="index.html asry.html reserves-bitcoin.html reserves-absr.html reserves-solana.html reserves-declaration.html proof-of-reserves.html api.html solanaagent_rec.png loading-animation.gif icon_dock.png icon_asry_nb.png icon_absr_nb.png logo_btc_nb.png SOL.png USDC.png USDT.png api-server.cjs openapi.json package.json package-lock.json mint-absr-to-reserve.cjs run-daily-absr-mint.sh test-lifi-sol-to-btc.js"
   echo "PULL=1: Pulling from $REMOTE_DIR only (allowlist: website files)..."
   pulled=0
   while read -r size path; do

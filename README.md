@@ -22,7 +22,7 @@ npm install
 npm start
 ```
 
-API runs on port 3001 (or `API_PORT`). Set `DATABASE_URL`, `BTC_PRIVATE_KEY_WIF`, `SOLANA_PRIVATE_KEY`, `TREASURY_SOLANA_ADDRESS` for full functionality (see `db/README.md`).
+API runs on port 3001 (or `API_PORT`). Set `BTC_PRIVATE_KEY_WIF`, `SOLANA_PRIVATE_KEY`, `TREASURY_SOLANA_ADDRESS` for full functionality.
 
 ## Deploy to droplet
 

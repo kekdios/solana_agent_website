@@ -2,9 +2,13 @@
 
 **Status:** Policy draft — not a promise of returns or redemption value.
 
-**`policy_version`:** `2025-03-21` (bump when material rules change; agents should compare to `GET …/asry-health` or doc hash).
+**`policy_version`:** `2026-03-19` (bump when material rules change; agents should compare to `GET …/asry-health` or doc hash).
 
-**Token:** ASRY (Agent Strategic Reserve Yield) — floating price, soft narrative anchor only; not ABSR and not BTC-pegged.
+**Token:** ASRY (Agent Strategic Reserve Yield) — non-staking, epoch-based profit-sharing claim system; not ABSR and not BTC-pegged.
+
+**Core mechanism:**
+- Official flow is **epoch-based redemption / profit sharing** (batched, pro-rata, capped).
+- Temporary anti-spam testing floor: **minimum claim = $0.10**.
 
 ### Source-of-truth order (for agents)
 
@@ -25,17 +29,17 @@ This is a **discretionary BTC-backed treasury token with variable distributions*
 |-------|-----------|
 | Discretionary treasury + published rules | A pegged stablecoin |
 | Variable, health-gated distributions | Guaranteed APY or redemption value |
-| Price discovery mainly on **one published ASRY/USDC AMM** | A product that must defend any price level |
+| Epoch-based, pro-rata distribution windows with capped bonus budget | A product that must defend any price level |
 
 ---
 
 ## 0.1 Deployment phases — **bootstrap (website-only)** vs production
 
-**Initial ASRY build-out:** components (pool ops, treasury keys, yield logic, payouts if any) are intended to **live on the website stack first** — **no cold wallets, no offline signing loop** — so integration and E2E testing stay simple.
+**Initial ASRY build-out:** components (receive/send rails, treasury keys, epoch logic, payouts if any) are intended to **live on the website stack first** — **no cold wallets, no offline signing loop** — so integration and E2E testing stay simple.
 
 | Phase | Custody & payouts | Purpose |
 |-------|-------------------|---------|
-| **`website_bootstrap`** | Treasury stables + signing **co-located with online services** (e.g. keys reachable from website/API backend). **No** mandatory cold sweep; **no** offline redemption bot. Delays/cooldowns can still be simulated or shortened for tests. | **Faster build and test**; validate pool, acquisition paths, health JSON, distributor logic. |
+| **`website_bootstrap`** | Treasury stables + signing **co-located with online services** (e.g. keys reachable from website/API backend). **No** mandatory cold sweep; **no** offline redemption bot. Delays/cooldowns can still be simulated or shortened for tests. | **Faster build and test**; validate receive/send rails, epoch claims, health JSON, distributor logic. |
 | **`production_hardened`** | **§2–§3.2** hot buffer + **cold** sweep; **§10.2** offline redemption bot; **§11** payout funding **not** from always-on server hot key. | **Material mainnet / real float** after explicit graduation. |
 
 **Rules:**
@@ -54,9 +58,9 @@ All **§10.2 / §11 “offline / cold”** language below is the **production ta
 
 | Priority | Component | What it is |
 |----------|-----------|------------|
-| **P0 — gate** | **Receiving** | User/treasury **inbound**: USDC/USDT (and paths to ASRY) via website/API — deposits, single-step acquisition (**§1.2**), confirmations. A **0.05% fee** is held back from each USDC/USDT receive. **Every failure is user-visible.** |
+| **P0 — gate** | **Receiving** | User/treasury **inbound**: USDC/USDT via website/API — deposits, confirmations, and treasury accounting. A **0.05% fee** is held back from each USDC/USDT receive. **Every failure is user-visible.** |
 | **P0 — gate** | **Sending** | **Outbound**: USDC (yield, refunds, treasury sends), ASRY if applicable — whatever users/agents depend on **leaving** treasury control through the exposed stack. **Every failure is user-visible.** |
-| **P1** | **On-chain smart contract(s)** | Next after P0: programs that **encode rules** (distributor, merkle/claim, pause, optional swap wrapper) — **verifiable state**, not DB-only. Still critical, but **secondary** to “money in / money out” actually working. |
+| **P1** | **On-chain smart contract(s)** | Next after P0: programs that **encode rules** (epoch state, distributor, merkle/claim, pause) — **verifiable state**, not DB-only. Still critical, but **secondary** to “money in / money out” actually working. |
 
 **Abandon-ship criterion (explicit):** If **receiving + sending** (P0), after reasonable hardening and iteration, still produce **unacceptable error rates** — failed txs, stuck states, support load, or unrecoverable edge cases — **stop ASRY rollout** rather than layering more product on a broken rail. **No shame in shipping nothing** if the exposed payment layer does not clear the bar.
 
@@ -70,67 +74,64 @@ All **§10.2 / §11 “offline / cold”** language below is the **production ta
 |------------|---------|
 | **Non-staking yield** | No lock-to-earn. Eligibility = **holding ASRY** per snapshot rules. |
 | **No external arbitrage permitted** | Treasury does **not** run cross-venue / systematic arb as yield source. |
-| **Buy/sell — single step** | Users must get **USDC or USDT → ASRY in one user transaction** (see §1.2). **No multi-hop Jupiter-style flows** as the official path — they have caused **failures in production**; avoid chaining swaps across multiple user steps. |
-| **Treasury-owned pool** | The **treasury controls, manages, and owns** the **ASRY/USDC** pool (LP authority, rebalancing, policy). The pool is **not** arms-length third-party liquidity — it is **treasury-operated**. |
+| **Epoch-only realization** | Value realization is through **epoch claim mechanics** only. |
+| **Epoch-based claims** | Redemptions are batched by epoch; users in same epoch split capped distributable USDC pro-rata by claim size. |
 | **Stables → cold; bounded hot buffer** | **Production:** **§2.1** buffer + **sweep surplus to cold**; replenish from cold. **Bootstrap (§0.1):** **optional** — stables may stay on **website-controlled hot** until graduation. |
-| **USDT → ASRY in one step** | If user pays **USDT**, they still complete **one signed transaction** that ends with **ASRY** (e.g. **on-chain program** that CPIs **USDT→USDC then USDC→ASRY** atomically inside the same tx — **not** “swap USDT then separately swap to ASRY”). |
+| **Minimum claim floor** | Claims below **$0.10** are rejected (testing default; may increase for production). |
 | **On-chain first (aspirational)** | Prefer **Solana programs** for acquisition helpers, **yield redemption**, and **cooldown state** so logic is **verifiable on-chain** — reduces reliance on **DB hacks, server bugs, and off-chain batch jobs** as the source of truth. |
 
-### 1.1 Pool and pricing
+### 1.1 Epoch-based redemption and distribution
 
-- **Pool:** **ASRY/USDC** — **treasury-controlled and -owned**; publish program + pool/pair ID, **LP authority pubkey(s)**, and **pause / upgrade multisig** if applicable.
-- **User trades vs treasury depth:** Buyers and sellers **swap against the same pool** the treasury owns — treasury provides liquidity; users do **not** need separate permission. This is **not** a conflict: ownership = who **controls** the curve, not who may trade.
-- **Sell ASRY for USDC:** **One transaction** — direct swap against that pool (single-hop), not a routed multi-step swap.
+- **Epoch duration:** default 7 days (or published alternative).
+- **Request flow:** user submits claim into current epoch; claim records amount and wallet.
+- **Finalization:** after epoch close, finalize once and set capped bonus allocation for that epoch.
+- **Payout:** each claim receives pro-rata share of finalized epoch allocation.
+- **Fairness:** no first-come advantage inside the same epoch.
 
-### 1.2 Single-step acquisition (USDC or USDT → ASRY)
+### 1.2 Inbound and claim rails (USDC/USDT + ASRY claims)
 
-**Problem observed:** **Jupiter (and similar) multi-step** swap flows **led to failures** — partial fills, route changes, extra signatures. **Policy: minimize steps.**
+**Problem observed:** complex, multi-step market flows are fragile and easy to game. **Policy: keep rails simple and deterministic.**
 
 | Path | Requirement |
 |------|-------------|
-| **USDC → ASRY** | **Exactly one user transaction:** e.g. **single-hop swap** instruction into **ASRY/USDC** (Raydium / Orca / Meteora **direct pool** swap — one ix, one tx). Agents: build **one** swap ix; no “quote then multi-leg” as mandatory path. |
-| **USDT → ASRY** | **Exactly one user transaction:** user must **not** manually run USDT→USDC then USDC→ASRY as **two** txs. Acceptable patterns: (a) **wrapper program** that performs **both legs via CPI in one tx** into published venues; or (b) **treasury mint/sale program** that accepts USDT, converts internally, delivers ASRY in **one tx**. Publish program id + instruction layout. |
+| **USDC/USDT inbound** | User sends stables to published treasury rails; confirmations are idempotent; **0.05% receive fee** held back. |
+| **ASRY redemption claim** | User submits claim to active epoch; claims below **$0.10** are rejected (testing default). |
+| **Epoch payout** | After finalization, user claims pro-rata USDC payout from that epoch allocation. |
 
-**Treasury / ops USDT:** Same principle — **batch USDT→USDC→operational use** in **atomic** on-chain flows where possible, not flaky multi-tx Jupiter chains.
-
-**Not official:** User-driven **multi-hop aggregators** as the **only** documented way to acquire ASRY.
+**Treasury / ops USDT:** normalize to USDC per §3.3 timing policy.
 
 ---
 
-## 2. Treasury-owned pool (locked)
+## 2. Epoch queue and payout buffer (locked)
 
-The **treasury controls, manages, and owns** the **ASRY/USDC** AMM position:
+The system uses an **epoch claim queue** with a **capped payout buffer**.
 
-- **Owns** the LP / pool keys (or dedicated treasury-controlled entities).
-- **Manages** depth, rebalancing, mint-into-pool vs sell, and any published desk rules.
-- **Controls** how ASRY and USDC sit on the curve — the pool is an **extension of the balance sheet**, not third-party liquidity.
-
-**Stablecoin handling from pool / sales:** **Production:** sweep above **§2.1** buffer to **cold**; **cold** = offline/HW-isolated; publish cold addresses / attestation. **Bootstrap (§0.1):** **defer cold** — operational USDC may remain on treasury hot used by the **website stack** for LP and testing.
+- Claims are batched by epoch and settled pro-rata after finalization.
+- Payout per epoch is capped by policy (`payout_ratio` + `max_bonus_per_epoch` style controls).
+- Stablecoin handling remains: **Production:** sweep above **§2.1** buffer to **cold**; **Bootstrap:** defer cold if needed for testing.
 
 ### 2.1 Hot working buffer (exception to “everything cold”)
 
-Treasury-owned AMM needs **fast rebalancing**. Policy:
+Epoch payouts need **reliable execution headroom**. Policy:
 
 | Element | Rule |
 |---------|------|
-| **Buffer band** | Publish e.g. **fixed USDC band** (e.g. **100k–500k USDC** hot, scale with AUM) **or** **X–Y%** of total treasury stables in hot for LP ops. |
+| **Buffer band** | Publish e.g. **fixed USDC band** (e.g. **100k–500k USDC** hot, scale with AUM) **or** **X–Y%** of total treasury stables in hot for payout ops. |
 | **Replenishment** | **Production:** **cold → hot** via scheduled/threshold, offline- or multisig-approved where possible. **Bootstrap:** same hot wallet / website ops — no cold leg. |
 | **Surplus** | **Production:** inflow **above** band high → **cold**. **Bootstrap:** may accumulate on hot for testing. |
 
-Without a buffer (production), **latency + failed LP ops** hurt the treasury-owned AMM; **bootstrap** trades that off for **test velocity**.
+Without a buffer (production), payout reliability degrades; **bootstrap** trades custody rigor for test velocity.
 
-### 2.2 Liquidity floor (minimum pool depth)
+### 2.2 Claim floor and anti-spam
 
-Publish **minimum ASRY/USDC depth** so the pool cannot be run **too thin** (small trades → wild prints → “broken market” perception even if solvent).
+Publish a minimum claim floor to prevent dust spam and cheap gaming in redemption epochs.
 
 | Element | Rule |
 |---------|------|
-| **Floor** | e.g. **≥ X% of circulating ASRY** notionally on the **USDC side**, **or** fixed minimums (e.g. **500k–2M USDC** side at scale — tune to float). |
-| **Withdrawal** | Treasury **does not remove liquidity below the floor** except in **§6 emergency** (or explicit **§6.1 degraded** + disclosed exception if ever allowed). |
+| **Minimum claim (testing)** | **$0.10** equivalent minimum per claim request. |
+| **Production revision** | Treasury may raise floor at graduation to reduce state bloat and spam. |
 
-Stabilizes **perception and execution quality**, not just balance-sheet solvency.
-
-**Optional add-on:** A separate **mint/redeem window** (premium/discount vs reference) may **supplement** the AMM but does not replace treasury ownership of the pool.
+Stabilizes execution and prevents trivial micro-claim abuse.
 
 ---
 
@@ -214,9 +215,9 @@ Optional: secondary cross-check (e.g. another feed) for internal audit — **pub
 |----------|--------|-----|
 | **1** | **Hyperliquid mid** | Primary for §4.1, §7, internal marking. |
 | **2** | **Secondary** | e.g. **median of N** other feeds (Coinbase, Kraken, index — publish list). |
-| **3** | **Last good HL + timeout** | If HL **unavailable or stale &gt; T minutes** (publish T, e.g. **15–60**), enter **§6.1 degraded** — **do not** silently use a frozen mid for buybacks / mint / yield math. |
+| **3** | **Last good HL + timeout** | If HL **unavailable or stale &gt; T minutes** (publish T, e.g. **15–60**), enter **§6.1 degraded** — **do not** silently use a frozen mid for epoch allocation or yield math. |
 
-In **degraded** (feed path): **disable buybacks, mint-band sales, and BTC-dependent yield calculations** until primary or secondary is healthy again. **AMM user swaps still operate** (pool prices are on-chain).
+In **degraded** (feed path): **disable new epoch bonus commitments/finalization** and BTC-dependent yield calculations until primary or secondary is healthy again.
 
 ---
 
@@ -224,7 +225,7 @@ In **degraded** (feed path): **disable buybacks, mint-band sales, and BTC-depend
 
 - Carry on **USDC** (non-arb, whitelisted venues).
 - **Spread** only insofar as **conservative borrow** is **already** within **borrow_limit** and **net_carry** is positive — **not** “borrow to distribute.”
-- **Treasury desk** (optional): mint/sell above band, buy/burn below band — **through ASRY/USDC** where treasury has depth (§2).
+- **Treasury desk** (optional): discretionary treasury actions that do not violate gates, custody, or claim fairness rules.
 - **Whitelist addendum only** for new sources — still **no external arb**.
 
 ---
@@ -237,7 +238,7 @@ In **degraded** (feed path): **disable buybacks, mint-band sales, and BTC-depend
 |------------------------|-------------------|
 | **> 15%** | **Stop all yield** distributions (accrual = 0 for period). |
 | **> 18%** | **Forced deleveraging begins** — repay debt and/or reduce collateral risk per runbook (e.g. USDC repay first, then planned BTC sale if needed). |
-| **> 20%** | **Emergency mode:** no buybacks, no discretionary mint-for-sale, **only survival ops** until LTV &lt; 18% or manual lift — **publish proof** immediately. |
+| **> 20%** | **Emergency mode:** no new epoch bonus commitments; **only survival ops** until LTV &lt; 18% or manual lift — **publish proof** immediately. |
 
 *(LTV = internal definition, e.g. borrowed USDC / BTC collateral MV marked with §4.1 BTC USD.)*
 
@@ -262,22 +263,20 @@ Same on **exit** from emergency mode. **Transparency reduces “silent stress”
 
 | Allowed | Paused |
 |---------|--------|
-| **AMM swaps** (users buy/sell ASRY vs pool) | **Yield** accrual/payout decisions that need fresh LTV/BTC proof |
-| Survival / delever internal ops | **Buybacks** |
-| | **Discretionary mint-for-sale** (band mints) |
-| | **Yield distribution commits** that depend on §4 BTC or §3.1 attestation |
+| Existing claim records and read-only visibility | **Yield** accrual/payout decisions that need fresh LTV/BTC proof |
+| Survival / delever internal ops | **New epoch bonus commitments/finalization** that depend on §4 BTC or §3.1 attestation |
 
 Publish **`degraded_mode: true`** in health JSON (**§14.1**). Exit when triggers clear + new attestation if needed.
 
 ---
 
-## 7. Buybacks — extra constraint (BTC stress)
+## 7. Epoch bonus — extra constraint (BTC stress)
 
-In addition to **daily caps** and **USDC reserve floors**:
+In addition to epoch caps and USDC reserve floors:
 
-- **Buybacks disabled** if **BTC drawdown &gt; X%** over **Y days** (publish X, Y).
+- **Epoch bonus finalization disabled** if **BTC drawdown &gt; X%** over **Y days** (publish X, Y).
 - **Default parameters (edit if needed):** **X = 10%**, **Y = 7 days** vs rolling high, using **§4.1 Hyperliquid BTC mid** (same as site-wide BTC USD).
-- **Reason:** collateral weakening is the **worst** time to spend stables defending ASRY price.
+- **Reason:** collateral weakening is the **worst** time to commit discretionary distributions.
 
 ---
 
@@ -287,25 +286,24 @@ Publish clearly:
 
 - Treasury is **not obligated** to defend **any** price level or soft target.
 - **Price may deviate materially** from any narrative “target” during stress.
-- **Zero** yield and **zero** buybacks are always allowed outcomes.
+- **Zero** yield/distribution is always an allowed outcome.
 
 This reduces **bank-run / entitlement** behavior when the chart breaks.
 
 ---
 
-## 9. Minting / dilution transparency
+## 9. Epoch allocation transparency
 
-When price **above** soft band allows **mint + sell**:
+For each finalized epoch allocation, publish:
 
 | Rule | Publish |
 |------|---------|
-| **Who receives new ASRY?** | Default: **treasury wallet only** → **immediate sell into ASRY/USDC** (or add to LP per **§2**). |
-| **Cap per period** | e.g. max **Z%** of circulating supply or max **N** ASRY per week. |
-| **Disclosure** | Each mint event: amount, **Solana tx signature(s)** for mint + sell (or LP add), use (sold vs LP). |
-| **Dashboard / JSON** | Maintain a **machine-readable summary** (page or `*.json`) listing **every** mint/sell episode: timestamp, ASRY amount, USDC received, **tx sigs** — reduces “insider mint” FUD; agents can `fetch_url` or scrape. |
-| **Execution style** | **No** single-block **market dump** of large mints. Use **TWAP / VWAP** over time **or** cap sales at **≤ X% of pool depth per hour** (publish X) so mints do not read as **insider dumps**. **§6.1** may pause mint-sales anyway. |
+| **Cap per epoch** | e.g. max **N USDC** bonus per epoch; publish method (`payout_ratio`, cap source). |
+| **Disclosure** | Each epoch finalization: epoch id, total claims, bonus allocation, and Solana tx signature(s). |
+| **Dashboard / JSON** | Maintain machine-readable summary listing every epoch finalization and claim status; agents can `fetch_url` or scrape. |
+| **Execution style** | Deterministic, pro-rata formula with explicit rounding/dust handling; no discretionary per-user exceptions. |
 
-Avoid **opaque dilution** or “insider mint” perception.
+Avoid opaque allocation changes or discretionary favoritism perception.
 
 ---
 
@@ -313,11 +311,11 @@ Avoid **opaque dilution** or “insider mint” perception.
 
 - **Snapshot** of ASRY balances at published times (on-chain verifiable methodology).
 - **Optional anti-sniper hold:** require ASRY held continuously across **two snapshots ≥ 7 days apart** (no staking contract).
-- **Exclude:** treasury wallets (unless stated), LP token accounts if policy pays “wallet” holders only — **state explicitly**.
+- **Exclude:** treasury wallets (unless stated) and any policy-excluded operational wallets — **state explicitly**.
 
 ### 10.1 Redemption delay + cooldown (anti-gaming; production pairs with **§10.2**)
 
-Agents can **quote, swap, and rebalance faster** than humans; **snapshot farming** is cheap without friction. Policy:
+Agents can automate faster than humans; snapshot farming is cheap without friction. Policy:
 
 | Rule | Purpose |
 |------|---------|
@@ -329,7 +327,7 @@ Agents can **quote, swap, and rebalance faster** than humans; **snapshot farming
 
 | Mode | Meaning |
 |------|---------|
-| **A — Snapshot-fixed (default draft)** | Entitlement for period **P** is fixed by **on-chain snapshot at T**. Selling ASRY **after T** but **before payout** **does not** void USDC owed for **P** (if on-chain root encodes that). |
+| **A — Snapshot-fixed (default draft)** | Entitlement for period **P** is fixed by **on-chain snapshot at T**. Transferring/selling ASRY **after T** but **before payout** **does not** void USDC owed for **P** (if on-chain root encodes that). |
 | **B — Hold-through-payout** | Wallet must hold **≥ de minimis ASRY continuously from snapshot through payout date** (or through **D**); selling early **voids** that period’s yield for that wallet. |
 
 Treasury **must publish A or B** in **`policy_version`** + health JSON. Switching mode **bumps `policy_version`**.
@@ -358,12 +356,9 @@ Treasury **must publish A or B** in **`policy_version`** + health JSON. Switchin
 - Below threshold: **batched transfers** OK with **deterministic chunking** and **capped recipients per tx** (Solana limits).  
 - Publish **`payout_model`**: `merkle_claim` | `batched_transfer` in health JSON.
 
-**Naming — two “redemptions”:**
+**Naming:** “redemption” in this policy means periodic/epoch USDC claim flow after **§10.1 delay** (if configured).
 
-1. **Yield redemption** = periodic USDC after **§10.1 delay**. **Production:** **§10.2 offline bot**; vault funding **offline-signed**. **Bootstrap:** website-integrated signer acceptable (**§0.1**).
-2. **ASRY → USDC exit** = **one** AMM swap on **treasury-owned** pool (§1.1).
-
-**Cooldown + delay** apply to **yield redemption** eligibility and payout timing, not to AMM sells.
+**Cooldown + delay** apply to yield/redemption eligibility and payout timing.
 
 Publish **N, M, C, D** — use **§17 defaults** unless overridden in attestation + health JSON.
 
@@ -379,7 +374,7 @@ Publish **N, M, C, D** — use **§17 defaults** unless overridden in attestatio
 
 **Production rationale:** On-chain **commits** who is owed; **cold + offline** **pays**. **Bootstrap:** speed and test coverage **before** that split.
 
-**Offline bot key hygiene (recommended):** Payout signing key in **multisig (e.g. 2-of-3)** or **hardware wallet**; **backup** procedure documented; **separate** from LP/hot sweep keys; **test** on devnet before mainnet batch.
+**Offline bot key hygiene (recommended):** Payout signing key in **multisig (e.g. 2-of-3)** or **hardware wallet**; **backup** procedure documented; **separate** from treasury operational hot keys; **test** on devnet before mainnet batch.
 
 **Not used:** staking; external-arb-funded rewards; **multi-step Jupiter** for yield delivery.
 
@@ -400,7 +395,7 @@ Publish **N, M, C, D** — use **§17 defaults** unless overridden in attestatio
 
 *(External review: these are **non-negotiable** differentiators.)*
 
-- **Treasury-owned AMM** — disciplined single venue.  
+- **Epoch-based, capped, pro-rata claim queue** with transparent on-chain state.  
 - **No external arb** as yield engine.  
 - **Mechanical yield** with **zero / negative distributable** allowed.  
 - **Borrowing not for yield** — internal enforcement.  
@@ -414,11 +409,11 @@ Publish **N, M, C, D** — use **§17 defaults** unless overridden in attestatio
 ## 14. Communication checklist
 
 - Framing: **discretionary BTC-backed treasury token; variable distributions; not stablecoin/bond/guarantee.**
-- **ASRY/USDC** pool ID; **single-step** USDC/USDT→ASRY (**§1.2**); **no multi-hop Jupiter** as official acquisition.
+- Inbound rails + epoch claim flow (**§1.2**) with explicit **$0.10** testing claim floor.
 - **§0.1** `deployment_phase`; **§0.2** **P0** = reliable **receive + send**; **P1** = on-chain programs; **abandon** if P0 error rate unacceptable.  
-- **Treasury owns pool** (**§2**); production: buffer + cold (**§2.1–§3.2**); **§3.3 USDT**; **§10.2** offline bot when hardened.
+- Epoch queue + payout buffer (**§2**); production: buffer + cold (**§2.1–§3.2**); **§3.3 USDT**; **§10.2** offline bot when hardened.
 - **§6.1 degraded** vs **§6 emergency**; **§4.2** BTC feed fallback.
-- Delever table (**§6**), buyback BTC-drawdown (**§7**), **no defense** (**§8**), mint caps + **TWAP-style mint sell** (**§9**).
+- Delever table (**§6**), BTC drawdown gate for epoch finalization (**§7**), **no defense** (**§8**), epoch allocation transparency (**§9**).
 - **Attestation `expires_at`** (**§3.1**); **§10.1 A vs B** eligibility; **Merkle at scale** (**§10.2**).
 
 ### 14.1 Autonomous agent integration (machine-readable health)
@@ -431,7 +426,8 @@ Expose at least one **stable JSON URL** (e.g. `GET /api/asry/health` or static `
 |-------|---------|
 | `policy_version` | Must match doc § header; agents invalidate cache when it changes. |
 | `deployment_phase` | **`website_bootstrap`** or **`production_hardened`** (**§0.1**). Required. |
-| `pool_address` / `lp_authority` | Treasury-owned ASRY/USDC identifiers. |
+| `current_epoch` / `epoch_end_iso` | Active epoch metadata for claims. |
+| `minimum_claim_usd` | Active minimum claim floor (testing default: `0.10`). |
 | `pause_authority` | Multisig that can halt distributor (if on-chain). |
 | `btc_price_usd` | Optional; **Hyperliquid mids BTC** (same as `/api/arbitrage/summary`). |
 | `btc_drawdown_7d_percent` | For §7 transparency; derived from same BTC series. |
@@ -452,7 +448,7 @@ Expose at least one **stable JSON URL** (e.g. `GET /api/asry/health` or static `
 
 Agents use **`fetch_url`** + existing arbitrage summary for BTC. **LTV is attested proof**, not scraped borrow positions via this site.
 
-**Agent-friendly flows (reference):** **One tx** USDC→ASRY (direct pool swap ix); **one tx** USDT→ASRY (wrapper if offered); yield: observe **payout tx sigs** after **D** days; **on-chain** program IDs documented.
+**Agent-friendly flows (reference):** confirm USDC/USDT inbound; submit epoch redemption claim; observe epoch finalization and payout tx sigs after **D** days; **on-chain** program IDs documented.
 
 ---
 
@@ -460,19 +456,19 @@ Agents use **`fetch_url`** + existing arbitrage summary for BTC. **LTV is attest
 
 | Topic | Decision |
 |-------|----------|
-| Acquisition | **One tx:** USDC→ASRY or USDT→ASRY (**§1.2**); **no Jupiter multi-hop** as official path. |
-| Pool | **Treasury controls, manages, owns** **ASRY/USDC** (**§2**). |
+| Acquisition | USDC/USDT inbound rails + epoch claim requests (**§1.2**). |
+| Realization model | Epoch-based claims and payouts only. |
 | Stables | **Bootstrap:** website hot OK (**§0.1**). **Production:** **§2.1** + cold sweep **§3.2**; **§3.3** USDT. |
-| Pool depth | **Liquidity floor** (**§2.2**); no pull below except **§6** emergency. |
-| Degraded | **§6.1** — attestation TTL, stale BTC feed, stale health → **no yield / buybacks / mint-band**; **swaps OK**. |
+| Claim floor | **$0.10 minimum claim** (testing default) (**§2.2**). |
+| Degraded | **§6.1** — attestation TTL, stale BTC feed, stale health → **no new yield commitments / no epoch bonus finalization**. |
 | Eligibility | **Publish A or B** (**§10.1**) for snapshot vs hold-through-payout. |
 | Yield payout | **Bootstrap:** website stack (**§0.1**). **Production:** **§10.1** + **§10.2** offline bot. |
 | Borrowing / LTV | **Independent** of site API; **proofs only** publicly (§3.1). |
 | Yield | **Mechanical residual** (§4); internal LTV &gt;15% → no payout; **attested** publicly. |
 | Delever | **&gt;18%** / **&gt;20%** internal; **proof + memo** public (§6). |
-| Buybacks | Capped + **off** if BTC down **&gt;10% / 7d** (**§7**) **or** **§6.1 degraded** / **§6 emergency**. |
+| Buybacks | Not used in this model. |
 | Price defense | **No obligation**; material deviation possible. |
-| Minting | **Treasury-only**, caps, **TWAP/VWAP or depth-capped sell** (**§9**), disclosed. |
+| Supply changes | Only if used for treasury accounting/distribution policy; no market-making assumptions. |
 | Distributions | **Non-staking**; on-chain rules where deployed; **bootstrap** = site-signed OK; **production** = offline after **D**; **zero** allowed. |
 | BTC USD | **Hyperliquid primary** + **§4.2** fallback / degraded if stale. |
 | Agents | **`deployment_phase`** (**§0.1**); **§14.1**; **§17**; source-of-truth order. |
@@ -486,12 +482,12 @@ Agents use **`fetch_url`** + existing arbitrage summary for BTC. **LTV is attest
 **Order follows §0.2.**
 
 1. **P0 — Receiving + sending:** Instrument and harden **all user-facing money in / money out** (website/API, tx confirmation, retries, clear errors). Define **error budget**; if unmet → **§0.2 abandon-ship**.  
-2. **P1 — On-chain smart contract(s):** After P0 is acceptable (or in tight parallel): distributor / merkle or claim vault, pause, cooldown state, optional **§1.2** wrapper — **minimal audited surface**. Account schema + instruction set as separate spec.  
-3. **Bootstrap:** pool + website treasury + health JSON **`deployment_phase: website_bootstrap`**.  
+2. **P1 — On-chain smart contract(s):** After P0 is acceptable (or in tight parallel): epoch/distributor / merkle or claim vault, pause, cooldown state — **minimal audited surface**. Account schema + instruction set as separate spec.  
+3. **Bootstrap:** epoch claims + website treasury + health JSON **`deployment_phase: website_bootstrap`**.  
 4. **Production:** cold sweep + hot buffer (**§2.1–§3.2**).  
-5. **ASRY acquisition helper (optional):** atomic USDT→ASRY (single user tx).  
+5. **Claim UX helper (optional):** simplified claim request + preview endpoints for agents/users.  
 6. **After graduation:** **§10.2** offline bot + **§11** + **§17 D**. **Bootstrap:** site-signed payouts OK until flip.  
-7. **Publish** `policy_version`, **§17**, LP + pause in health JSON.  
+7. **Publish** `policy_version`, **§17**, epoch metadata + pause in health JSON.  
 8. **LTV** attestation **`expires_at`**; on-chain pause.  
 9. **Runbooks:** cold/buffer; attestations; **§6 / §6.1**; offline batch export (production).
 
@@ -507,11 +503,11 @@ Agents use **`fetch_url`** + existing arbitrage summary for BTC. **LTV is attest
 | **M** | Distribution periods before re-eligible after claim | **1** (quarter) |
 | **C** | Or calendar days claim cooldown (if using C not M) | **30** |
 | **D** | Days after snapshot before offline payout window | **7** |
-| Buyback BTC gate | Drawdown vs rolling high | **10% / 7d** (§7) |
+| Epoch duration | Claim bucket length | **7 days** |
 | LTV yield halt | Internal | **>15%** no payout |
 | Emergency | Internal | **>20%** + public memo |
-| Hot buffer (illustrative) | USDC in hot for LP | e.g. **100k–500k** or **% band** — publish |
-| Liquidity floor | Min pool USDC (or %) | e.g. **500k–2M** or **% of float** — publish |
+| Hot buffer (illustrative) | USDC in hot for payouts | e.g. **100k–500k** or **% band** — publish |
+| Minimum claim floor (testing) | Per-claim minimum | **$0.10** |
 | HL stale timeout | → §6.1 degraded | e.g. **15–60 min** |
 | Attestation TTL | `expires_at − as_of` | e.g. **≤72h** |
 | Merkle-only threshold | Recipient count | e.g. **>1k** → **merkle_claim** |
@@ -529,14 +525,14 @@ Defaults are **starting points**; treasury may tighten. **Any change** → new *
 |------------------|----------|
 | **Policy versioning** | **`policy_version`** in doc header + **§14.1** JSON; bump on rule changes. |
 | **Source-of-truth hierarchy** | **§** after header: chain > attestation > doc. |
-| **Treasury pool vs user swap** | **§1.1** — users trade same pool treasury owns; no ambiguity. |
-| **Fix broken § ref** | **§9** mint → LP **§2** (was stale §2A). |
+| **Epoch flow clarity** | **§1.1** — claim -> finalize -> payout flow documented as official path. |
+| **Section alignment** | **§9** rewritten as epoch allocation transparency. |
 | **Vault / cold path** | **§11** — fund vault **only** via **offline-signed** from cold; **no** server hot key. |
 | **Pause authority** | **§11** + **§14.1** `pause_authority` published. |
 | **Offline bot ops** | **§11** multisig/HW key, backup, test devnet. |
 | **Single params table** | **§17** defaults (**N/M/C/D**, gates). |
 | **Agent etiquette** | **§14.1** cache + backoff. |
-| **Health JSON fields** | `policy_version`, `pool_address`, `lp_authority`, `pause_authority`. |
+| **Health JSON fields** | `policy_version`, `current_epoch`, `minimum_claim_usd`, `pause_authority`. |
 
 ---
 
@@ -562,22 +558,22 @@ Defaults are **starting points**; treasury may tighten. **Any change** → new *
 
 ## Appendix A — Autonomous agent review (incorporated)
 
-Feedback from an internal **Solana-focused agent** (wallet ops, swaps, workspace scripting) was merged into this doc. Summary:
+Feedback from an internal **Solana-focused agent** (wallet ops, claim flows, workspace scripting) was merged into this doc. Summary:
 
 | Agent theme | Incorporation |
 |-------------|----------------|
-| Non-staking snapshots + USDC pool | Already core; **§14.1** adds JSON health for automation. |
+| Non-staking snapshots + epoch claims | Already core; **§14.1** adds JSON health for automation. |
 | Mechanical yield + LTV halts | **§4** internal; **§3.1 proofs** public; **§4.1 Hyperliquid** BTC. |
 | Borrow enforcement | **§3.1** independent loan layer; site shows **proofs only**. |
-| Mint FUD | **§9** tx-linked events + **dashboard JSON**. |
-| Buyback X/Y | **§7** **10% / 7d** + **Hyperliquid** BTC (§4.1). |
+| Allocation transparency | **§9** tx-linked epoch finalizations + dashboard JSON. |
+| Stress gate X/Y | **§7** **10% / 7d** + **Hyperliquid** BTC (§4.1). |
 | Agent gaming | **§10.1** cooldown + **delay D**; **§10.2** **offline** payout bot. |
-| Cold + pool | **§2** treasury-owned pool; **§3.2** stables to cold. |
-| Jupiter failures | **§1.2** **single-step** only; wrapper program for USDT path. |
+| Cold + payouts | **§2** epoch payout buffer; **§3.2** stables to cold. |
+| Rail simplicity | **§1.2** inbound + claim rails only (no official AMM path). |
 | On-chain | **§11** rules on-chain; **§16** offline bot pays; less DB trust. |
 | Low yield when safe | **§0** framing — **variable**, not max APY; agents value **predictability of rules** over headline yield. |
 | Verifiability | Emergency **memo** (**§6**), **Hyperliquid** BTC + **LTV attestations**, health JSON (**§14.1**). |
-| Optional mint/redeem | **§2** may supplement AMM. |
+| Optional refinements | **§2** may add claim/epoch optimization without changing core model. |
 
 ---
 

@@ -51,9 +51,6 @@ for (const page of PAGES) {
   const navCount = REQUIRED_NAV.filter((n) => html.includes(n)).length;
   check("nav links (at least 6 of 8)", navCount >= 6);
 
-  if (page === "proof-of-reserves.html") {
-    check("uses /api for fetch", html.includes('"/api"') || html.includes("API + \""));
-  }
 }
 
 // Check assets exist

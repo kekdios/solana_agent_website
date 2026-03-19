@@ -139,6 +139,30 @@
         text-decoration: none;
       }
       footer a:hover { text-decoration: underline; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a, .site-sidebar .nav-item { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .logo-wrap, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+      }
     </style>
   </head>
   <body>

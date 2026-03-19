@@ -205,36 +205,6 @@
       }
       .proof-box .label { color: #64748b; margin-bottom: 0.25rem; }
       .proof-box .value { font-family: ui-monospace, monospace; word-break: break-all; color: #cbd5e1; }
-      .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
-      table.tx-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.8125rem;
-      }
-      table.tx-table th,
-      table.tx-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
-      table.tx-table th { color: #64748b; font-weight: 500; }
-      table.tx-table td { color: #cbd5e1; }
-      table.tx-table a { color: #34d399; text-decoration: none; }
-      table.tx-table a:hover { text-decoration: underline; }
-      .pagination {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.75rem;
-        font-size: 0.875rem;
-      }
-      .pagination button {
-        padding: 0.35rem 0.75rem;
-        background: #1e1e24;
-        border: 1px solid #2a2a30;
-        border-radius: 0.375rem;
-        color: #e2e8f0;
-        cursor: pointer;
-      }
-      .pagination button:hover:not(:disabled) { background: #2a2a30; border-color: #34d399; }
-      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-      .pagination span { color: #94a3b8; }
       .loading { color: #64748b; font-style: italic; }
       .error { color: #f87171; }
       .swap-section { margin: 1rem 0; }
@@ -336,6 +306,35 @@
       .link-accent:hover { text-decoration: underline; }
       footer a { color: #34d399; text-decoration: none; }
       footer a:hover { text-decoration: underline; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a, .site-sidebar .nav-item { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .nav-sub { width: 100%; padding-left: 0; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .page-title, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .tabs { overflow-x: auto; white-space: nowrap; }
+        .tabs button { flex: 0 0 auto; }
+        .card-header-row { flex-wrap: wrap; align-items: flex-start; }
+        .addr-text { max-width: 100%; }
+      }
     </style>
   </head>
   <body>
@@ -385,7 +384,7 @@
         <img src="logo_btc_nb.png" alt="" class="title-logo" width="36" height="36" />
         <h1>Proof of Reserves</h1>
       </div>
-      <p class="tagline">Reserve SOL→BTC swap history</p>
+      <p class="tagline">Reserve transparency and on-chain verification</p>
     </div>
     <main>
       <section class="reserve-card" id="exchanges-section" aria-labelledby="exchanges-heading">
@@ -394,17 +393,14 @@
           <p class="sats-note swap-caution" style="margin:0.75rem 0; padding:0.75rem; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); border-radius:0.5rem; color:#fbbf24;">
             <strong>Confirmation time:</strong> Bitcoin settlement can take from several minutes up to a few hours depending on network congestion. Do not assume instant completion.
           </p>
-          <div class="card-header-row" style="margin-top:1rem;">
-            <p class="label" style="margin:0;">Reserve SOL→BTC swaps (increased the BTC reserve)</p>
-            <button type="button" class="btn btn-refresh" id="exchanges-refresh" title="Refresh transactions">Refresh</button>
-          </div>
-          <div class="tx-table-wrap">
-            <div id="exchanges-tx-loading" class="loading">Loading…</div>
-            <table class="tx-table" id="exchanges-tx-table" style="display:none;">
-              <thead><tr><th>Transaction</th><th>SOL amount</th><th>BTC (sats)</th><th>Date</th></tr></thead>
-              <tbody id="exchanges-tx-body"></tbody>
-            </table>
-            <div class="pagination" id="exchanges-pagination" style="display:none;"></div>
+          <p class="sats-note" style="margin-top:1rem;">
+            Swap history is sourced directly from on-chain explorers instead of an internal database.
+            Use the links below to review reserve address activity in real time.
+          </p>
+          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:0.75rem;">
+            <a class="btn" href="reserves-solana.html">View Solana reserve activity</a>
+            <a class="btn" href="reserves-bitcoin.html">View Bitcoin reserve activity</a>
+            <a class="btn" href="https://explorer.solana.com" target="_blank" rel="noopener">Open Solana Explorer</a>
           </div>
         </section>
 
@@ -414,123 +410,5 @@
     </footer>
     </div>
 
-    <script>
-      const API = "/api";
-      const ROWS_PER_PAGE = 10;
-      const SOLANA_EXPLORER_BASE = "https://explorer.solana.com";
-
-      function formatDate(ts) {
-        if (ts == null) return "—";
-        const d = new Date(ts * 1000);
-        return d.toLocaleString();
-      }
-
-      function paginate(arr, page) {
-        const start = (page - 1) * ROWS_PER_PAGE;
-        return arr.slice(start, start + ROWS_PER_PAGE);
-      }
-
-      function renderPagination(containerId, currentPage, totalPages, onPage) {
-        const el = document.getElementById(containerId);
-        if (!el || totalPages <= 1) {
-          if (el) el.style.display = "none";
-          return;
-        }
-        el.style.display = "flex";
-        el.innerHTML = "";
-        const prev = document.createElement("button");
-        prev.textContent = "Previous";
-        prev.disabled = currentPage <= 1;
-        prev.onclick = () => onPage(currentPage - 1);
-        el.appendChild(prev);
-        const span = document.createElement("span");
-        span.textContent = "Page " + currentPage + " of " + totalPages;
-        el.appendChild(span);
-        const next = document.createElement("button");
-        next.textContent = "Next";
-        next.disabled = currentPage >= totalPages;
-        next.onclick = () => onPage(currentPage + 1);
-        el.appendChild(next);
-      }
-
-      function formatUsd(n) {
-        if (n == null || Number.isNaN(n)) return "—";
-        return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
-
-      function escapeHtml(s) {
-        const div = document.createElement("div");
-        div.textContent = s;
-        return div.innerHTML;
-      }
-
-      async function loadExchangesTransactions() {
-        const res = await fetch(API + "/exchanges/transactions");
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.transactions || [];
-      }
-
-      // Exchanges UI (SOL → BTC swaps that increased reserve)
-      let exchangesTxs = [];
-      let exchangesPage = 1;
-
-      function renderExchangesTable() {
-        const body = document.getElementById("exchanges-tx-body");
-        const table = document.getElementById("exchanges-tx-table");
-        const loading = document.getElementById("exchanges-tx-loading");
-        const totalPages = Math.max(1, Math.ceil(exchangesTxs.length / ROWS_PER_PAGE));
-        const page = Math.min(exchangesPage, totalPages);
-        const rows = paginate(exchangesTxs, page);
-
-        loading.style.display = "none";
-        if (exchangesTxs.length === 0) {
-          body.innerHTML = "<tr><td colspan=\"4\">No exchange transactions</td></tr>";
-        } else {
-          body.innerHTML = rows
-            .map(
-              (tx) =>
-                "<tr><td>" +
-                (tx.signature
-                  ? "<a href=\"" + SOLANA_EXPLORER_BASE + "/tx/" + tx.signature + "\" target=\"_blank\" rel=\"noopener\">" + (tx.signature.slice(0, 12) + "…") + "</a>"
-                  : escapeHtml(tx.txId || "—")) +
-                "</td><td>" + (tx.solAmount != null ? Number(tx.solAmount).toFixed(4) + " SOL" : "—") +
-                "</td><td>" + (tx.btcSats != null ? Number(tx.btcSats).toLocaleString() + " sats" : "—") +
-                "</td><td>" + formatDate(tx.blockTime) + "</td></tr>"
-            )
-            .join("");
-          renderPagination("exchanges-pagination", page, totalPages, (p) => {
-            exchangesPage = p;
-            renderExchangesTable();
-          });
-        }
-        table.style.display = "table";
-      }
-
-      async function refreshExchanges() {
-        const btn = document.getElementById("exchanges-refresh");
-        const loading = document.getElementById("exchanges-tx-loading");
-        const table = document.getElementById("exchanges-tx-table");
-        if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
-        if (loading) loading.style.display = "block";
-        if (table) table.style.display = "none";
-        try {
-          exchangesTxs = await loadExchangesTransactions();
-          exchangesPage = 1;
-          renderExchangesTable();
-        } finally {
-          if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
-        }
-      }
-
-      async function init() {
-        exchangesTxs = await loadExchangesTransactions();
-        renderExchangesTable();
-        const exchangesRefreshEl = document.getElementById("exchanges-refresh");
-        if (exchangesRefreshEl) exchangesRefreshEl.addEventListener("click", refreshExchanges);
-      }
-
-      init();
-    </script>
   </body>
 </html>

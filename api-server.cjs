@@ -1,10 +1,10 @@
 /**
  * Proof-of-reserves API for Solana Agent website.
- * Env: BTC_PRIVATE_KEY_WIF, SOLANA_PRIVATE_KEY, DATABASE_URL (optional). SOL→BTC swap via LI.FI (no API key required).
+ * Env: BTC_PRIVATE_KEY_WIF, SOLANA_PRIVATE_KEY. SOL→BTC swap via LI.FI (no API key required).
  */
 const http = require("http");
 const { Keypair, Connection, PublicKey, Transaction, VersionedTransaction, SystemProgram } = require("@solana/web3.js");
-const { createMint, getOrCreateAssociatedTokenAccount, mintTo, setAuthority, AuthorityType, getMint } = require("@solana/spl-token");
+const { createMint, getOrCreateAssociatedTokenAccount, mintTo, setAuthority, AuthorityType, getMint, getAssociatedTokenAddress } = require("@solana/spl-token");
 const bs58 = require("bs58");
 const bitcoin = require("bitcoinjs-lib");
 const bitcoinMessage = require("bitcoinjs-message");
@@ -33,14 +33,6 @@ const SOL_FEE_RESERVE_LAMPORTS = 10000;
 /** Minimum SOL amount for LI.FI SOL→BTC (conservative; quote may allow slightly less). */
 const LIFI_MIN_SOL = 0.001;
 
-let pgPool = null;
-if (process.env.DATABASE_URL) {
-  try {
-    const { Pool } = require("pg");
-    const connectionString = (process.env.DATABASE_URL || "").trim();
-    if (connectionString) pgPool = new Pool({ connectionString });
-  } catch (_) {}
-}
 
 function getBtcKey() {
   const wif = process.env.BTC_PRIVATE_KEY_WIF || process.env.BTC_PRIVATE_KEY;
@@ -92,6 +84,60 @@ async function fetchSolBalance(connection, publicKey) {
   } catch (_) {
     return null;
   }
+}
+
+const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+const USDT_MINT = new PublicKey("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB");
+
+async function fetchSolanaTokenBalances(connection, walletPublicKey) {
+  if (!connection || !walletPublicKey) return { sol: null, usdc: null, usdt: null };
+  const pubkey = walletPublicKey instanceof PublicKey ? walletPublicKey : new PublicKey(walletPublicKey);
+  try {
+    const solLamports = await connection.getBalance(pubkey);
+    const sol = solLamports / 1e9;
+    let usdc = null, usdt = null;
+    try {
+      const usdcAta = await getAssociatedTokenAddress(USDC_MINT, pubkey, true);
+      const usdcAcc = await connection.getTokenAccountBalance(usdcAta);
+      const raw = Number(usdcAcc.value.amount);
+      usdc = raw === 0 ? 0 : (usdcAcc.value.uiAmount != null ? usdcAcc.value.uiAmount : raw / Math.pow(10, usdcAcc.value.decimals || 6));
+    } catch (_) {}
+    try {
+      const usdtAta = await getAssociatedTokenAddress(USDT_MINT, pubkey, true);
+      const usdtAcc = await connection.getTokenAccountBalance(usdtAta);
+      const raw = Number(usdtAcc.value.amount);
+      usdt = raw === 0 ? 0 : (usdtAcc.value.uiAmount != null ? usdtAcc.value.uiAmount : raw / Math.pow(10, usdtAcc.value.decimals || 6));
+    } catch (_) {}
+    return { sol, usdc, usdt };
+  } catch (_) {
+    return { sol: null, usdc: null, usdt: null };
+  }
+}
+
+async function fetchSolanaAddressBalances(connection, address) {
+  if (!connection || !address) return { sol: null, usdc: null, usdt: null };
+  const pubkey = address instanceof PublicKey ? address : new PublicKey(address);
+  try {
+    const parsed = await connection.getParsedAccountInfo(pubkey);
+    const data = parsed && parsed.value && parsed.value.data;
+    const isTokenAccount = data && typeof data === "object" && data.program === "spl-token" && data.parsed && data.parsed.type === "account";
+    if (isTokenAccount) {
+      const mint = data.parsed?.info?.mint || null;
+      const tokenAmount = data.parsed?.info?.tokenAmount || null;
+      const raw = tokenAmount && tokenAmount.amount != null ? Number(tokenAmount.amount) : NaN;
+      const decimals = tokenAmount && tokenAmount.decimals != null ? Number(tokenAmount.decimals) : 6;
+      const uiAmount = tokenAmount && tokenAmount.uiAmount != null
+        ? Number(tokenAmount.uiAmount)
+        : (Number.isFinite(raw) ? raw / Math.pow(10, decimals || 6) : null);
+      const amount = Number.isFinite(uiAmount) ? uiAmount : null;
+      return {
+        sol: null,
+        usdc: mint === USDC_MINT.toBase58() ? (amount != null ? amount : null) : null,
+        usdt: mint === USDT_MINT.toBase58() ? (amount != null ? amount : null) : null,
+      };
+    }
+  } catch (_) {}
+  return fetchSolanaTokenBalances(connection, pubkey);
 }
 
 function signBitcoinMessage(message, keyPair) {
@@ -254,50 +300,6 @@ async function verifySolPaymentToTreasury(txSignature, requiredLamports) {
   return false;
 }
 
-let absrListedEnsureDone = false;
-/** Ensure ABSR token exists in tokens table and is listed (confirmed) so it appears in Token Repository. @param opts.rethrow - if true, rethrow on error so caller can return it (e.g. debug endpoint). */
-async function ensureAbsrListed(opts = {}) {
-  if (!pgPool || absrListedEnsureDone) return;
-  const creatorAddress = (TREASURY_SOLANA_ADDRESS || "").trim() || null;
-  try {
-    const existing = await pgPool.query("SELECT id FROM tokens WHERE mint_address = $1", [ABSR_MINT_ADDRESS]);
-    let tokenId;
-    if (existing.rows.length > 0) {
-      tokenId = existing.rows[0].id;
-    } else {
-      const ins = await pgPool.query(
-        `INSERT INTO tokens (name, symbol, decimals, supply, description, revoke_freeze_authority, revoke_mint_authority, revoke_update_authority, metaplex_metadata, mint_address, creator_address)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-        [
-          "Agent Bitcoin Strategic Reserve",
-          "ABSR",
-          0,
-          "10000",
-          "1 satoshi - 1 ABSR",
-          false,
-          false,
-          false,
-          true,
-          ABSR_MINT_ADDRESS,
-          creatorAddress,
-        ]
-      );
-      tokenId = ins.rows[0].id;
-    }
-    await pgPool.query(
-      `INSERT INTO listing_requests (token_id, fee_sol, status, confirmed_at) VALUES ($1, 0, 'confirmed', NOW())
-       ON CONFLICT (token_id) DO UPDATE SET status = 'confirmed', confirmed_at = COALESCE(listing_requests.confirmed_at, NOW())`,
-      [tokenId]
-    );
-    absrListedEnsureDone = true;
-  } catch (e) {
-    const msg = e.message || String(e);
-    const code = e.code || "";
-    const detail = e.detail || "";
-    console.warn("ensureAbsrListed:", msg, code ? `(${code})` : "", detail || "");
-    if (opts.rethrow) throw e;
-  }
-}
 
 const server = http.createServer(async (req, res) => {
   let path = "/";
@@ -330,15 +332,15 @@ const server = http.createServer(async (req, res) => {
     const btcKey = getBtcKey();
     const solKey = getSolanaKeypair();
     const btcAddress = getBtcAddress(btcKey);
-    const solAddress = solKey ? solKey.publicKey.toBase58() : null;
+    const solAddress = (process.env.TREASURY_SOLANA_ADDRESS || "").trim() || (solKey ? solKey.publicKey.toBase58() : null);
 
     let btcBalance = null;
-    let solBalance = null;
+    let solBalances = { sol: null, usdc: null, usdt: null };
     if (btcAddress) btcBalance = await fetchBtcBalance(btcAddress);
-    if (solKey) {
+    if (solAddress) {
       const { Connection } = require("@solana/web3.js");
       const conn = new Connection(SOLANA_RPC);
-      solBalance = await fetchSolBalance(conn, solKey.publicKey);
+      solBalances = await fetchSolanaAddressBalances(conn, solAddress);
     }
 
     res.writeHead(200);
@@ -348,10 +350,64 @@ const server = http.createServer(async (req, res) => {
           ? { address: btcAddress, balanceBtc: btcBalance, balanceSat: btcBalance != null ? Math.round(btcBalance * 1e8) : null }
           : { address: null, balanceBtc: null, balanceSat: null },
         solana: solAddress
-          ? { address: solAddress, balanceSol: solBalance }
-          : { address: null, balanceSol: null },
+          ? { address: solAddress, balanceSol: solBalances.sol, balanceUsdc: solBalances.usdc, balanceUsdt: solBalances.usdt }
+          : { address: null, balanceSol: null, balanceUsdc: null, balanceUsdt: null },
       })
     );
+    return;
+  }
+
+  if (path.startsWith("/api/reserves/solana-address") && req.method === "GET") {
+    const address = url.searchParams.get("address");
+    if (!address || !address.trim()) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "address query parameter required" }));
+      return;
+    }
+    try {
+      const { Connection } = require("@solana/web3.js");
+      const conn = new Connection(SOLANA_RPC);
+      const balances = await fetchSolanaAddressBalances(conn, address.trim());
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        address: address.trim(),
+        balanceSol: balances.sol,
+        balanceUsdc: balances.usdc,
+        balanceUsdt: balances.usdt,
+      }));
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
+  if (path.startsWith("/api/token-supply") && req.method === "GET") {
+    const mintParam = url.searchParams.get("mint");
+    if (!mintParam || !mintParam.trim()) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "mint query parameter required" }));
+      return;
+    }
+    try {
+      const { Connection } = require("@solana/web3.js");
+      const conn = new Connection(SOLANA_RPC);
+      const mintKey = new PublicKey(mintParam.trim());
+      const mint = await getMint(conn, mintKey);
+      const supplyRaw = Number(mint.supply);
+      const decimals = mint.decimals;
+      const supply = supplyRaw / Math.pow(10, decimals);
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        mint: mintParam.trim(),
+        supply,
+        supplyRaw: supplyRaw.toString(),
+        decimals,
+      }));
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: String(e.message || e) }));
+    }
     return;
   }
 
@@ -487,60 +543,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Exchanges tab: from Postgres swap_transactions
-  if (path === "/api/exchanges/transactions" && req.method === "GET") {
-    if (pgPool) {
-      try {
-        const q = await pgPool.query(
-          "SELECT changenow_id AS id, sol_amount AS \"solAmount\", btc_sats AS \"btcSats\", solana_signature AS signature, created_at AS \"blockTime\" FROM swap_transactions ORDER BY created_at DESC LIMIT 100"
-        );
-        const transactions = q.rows.map((r) => ({
-          signature: r.signature,
-          txId: r.id,
-          solAmount: r.solAmount != null ? Number(r.solAmount) : null,
-          btcSats: r.btcSats != null ? Number(r.btcSats) : null,
-          blockTime: r.blockTime ? Math.floor(new Date(r.blockTime).getTime() / 1000) : null,
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify({ transactions }));
-      } catch (e) {
-        res.writeHead(200);
-        res.end(JSON.stringify({ transactions: [] }));
-      }
-    } else {
-      res.writeHead(200);
-      res.end(JSON.stringify({ transactions: [] }));
-    }
-    return;
-  }
-
-  // Arbitrage tab: from Postgres arbitrage_transactions
-  if (path === "/api/arbitrage/transactions" && req.method === "GET") {
-    if (pgPool) {
-      try {
-        const q = await pgPool.query(
-          "SELECT external_id, type, amount_sats, amount_usd, signature, created_at FROM arbitrage_transactions ORDER BY created_at DESC LIMIT 100"
-        );
-        const transactions = q.rows.map((r) => ({
-          signature: r.signature,
-          txId: r.external_id,
-          type: r.type,
-          amountSats: r.amount_sats != null ? Number(r.amount_sats) : null,
-          amountUsd: r.amount_usd != null ? Number(r.amount_usd) : null,
-          blockTime: r.created_at ? Math.floor(new Date(r.created_at).getTime() / 1000) : null,
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify({ transactions }));
-      } catch (e) {
-        res.writeHead(200);
-        res.end(JSON.stringify({ transactions: [] }));
-      }
-    } else {
-      res.writeHead(200);
-      res.end(JSON.stringify({ transactions: [] }));
-    }
-    return;
-  }
 
   // Swap SOL → BTC (LI.FI only): estimated BTC sats for a given SOL amount
   if (path === "/api/swap/estimate" && req.method === "GET") {
@@ -650,14 +652,6 @@ const server = http.createServer(async (req, res) => {
       sendError(res, 502, "UPSTREAM_ERROR", "Solana send failed: " + (e.message || String(e)), "retry_later");
       return;
     }
-    if (pgPool) {
-      try {
-        await pgPool.query(
-          "INSERT INTO swap_transactions (changenow_id, sol_amount, btc_sats, status, solana_signature) VALUES ($1, $2, $3, $4, $5)",
-          [solanaSignature, amountSol, expectedBtcSats, "waiting", solanaSignature]
-        );
-      } catch (_) {}
-    }
     const tool = quote.tool || "near";
     res.writeHead(200);
     res.end(
@@ -687,37 +681,6 @@ const server = http.createServer(async (req, res) => {
     const lifiStatusStr = statusData.status || "";
     const status = lifiStatusStr === "DONE" ? "finished" : lifiStatusStr === "FAILED" ? "failed" : "waiting";
     const btcSats = statusData.receivingTx && statusData.receivingTx.toAmount != null ? Math.round(Number(statusData.receivingTx.toAmount)) : (statusData.toAmount != null ? Math.round(Number(statusData.toAmount)) : null);
-    if (pgPool && (status === "finished" || status === "failed")) {
-      try {
-        await pgPool.query(
-          "UPDATE swap_transactions SET status = $1, btc_sats = COALESCE($2, btc_sats), updated_at = NOW() WHERE changenow_id = $3 OR solana_signature = $3",
-          [status, btcSats, id]
-        );
-        if (status === "finished" && btcSats != null) {
-          let btcPriceUsd = null;
-          try {
-            const r = await fetch("https://api.hyperliquid.xyz/info", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "allMids" }),
-            });
-            if (r.ok) {
-              const mids = await r.json();
-              if (mids && typeof mids === "object" && mids.BTC != null) {
-                btcPriceUsd = Number(mids.BTC);
-              }
-            }
-          } catch (_) {}
-          const amountUsd = btcPriceUsd != null ? (btcSats / 1e8) * btcPriceUsd : null;
-          try {
-            await pgPool.query(
-              "INSERT INTO arbitrage_transactions (external_id, type, amount_sats, amount_usd, status, signature) VALUES ($1, $2, $3, $4, $5, $6)",
-              [id, "issue", btcSats, amountUsd, "confirmed", id]
-            );
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
     res.writeHead(200);
     res.end(
       JSON.stringify({

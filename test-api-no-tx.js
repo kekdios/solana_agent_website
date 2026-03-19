@@ -72,51 +72,13 @@ async function run() {
     ok("GET /api/swap/estimate?amountSol=0.1", await request("GET", "/api/swap/estimate?amountSol=0.1"));
     ok("GET /api/transactions/bitcoin", await request("GET", "/api/transactions/bitcoin"));
     ok("GET /api/transactions/solana", await request("GET", "/api/transactions/solana"));
-    ok("GET /api/arbitrage/transactions", await request("GET", "/api/arbitrage/transactions"));
-    ok("GET /api/exchanges/transactions", await request("GET", "/api/exchanges/transactions"));
-    ok("GET /api/tokens", await request("GET", "/api/tokens"));
-    ok("GET /api/listings", await request("GET", "/api/listings"));
-    ok("GET /api/listings/search", await request("GET", "/api/listings/search"));
-    ok("GET /api/listings/search?q=x", await request("GET", "/api/listings/search?q=x"));
 
     console.log("\n--- POST (no chain tx) ---");
-    const createRes = await request("POST", "/api/tokens", {
-      name: "TestToken",
-      symbol: "TST",
-      decimals: 9,
-      supply: "1000000000",
-      description: "Test",
-      revoke_freeze_authority: false,
-      revoke_mint_authority: false,
-      revoke_update_authority: false,
-      metaplex_metadata: false,
-    });
-    const createOk = createRes.status === 200 || createRes.status === 503;
-    results.push({ name: "POST /api/tokens (create)", pass: createOk, status: createRes.status });
-    console.log(createOk ? "  OK" : "  FAIL", createRes.status, "POST /api/tokens (create)");
-    if (createRes.status === 200) {
-      const id = JSON.parse(createRes.data).id;
-      if (id) ok("GET /api/tokens/" + id, await request("GET", "/api/tokens/" + id));
-    }
-
-    const listReqRes = await request("POST", "/api/listings/request", { token_id: 1 });
-    const listReqOk = listReqRes.status === 200 || listReqRes.status === 400 || listReqRes.status === 404 || listReqRes.status === 503;
-    results.push({ name: "POST /api/listings/request", pass: listReqOk, status: listReqRes.status });
-    console.log(listReqOk ? "  OK" : "  FAIL", listReqRes.status, "POST /api/listings/request");
-
     console.log("\n--- Error cases (no tx) ---");
-    const badConfirm = await request("POST", "/api/listings/confirm", {
-      listing_request_id: "00000000-0000-0000-0000-000000000000",
-      tx_signature: "fakesig",
-    });
-    const expectBad = badConfirm.status === 400 || badConfirm.status === 404 || badConfirm.status === 503;
-    results.push({ name: "POST /api/listings/confirm (invalid)", pass: expectBad, status: badConfirm.status });
-    console.log(expectBad ? "  OK" : "  FAIL", badConfirm.status, "POST /api/listings/confirm (invalid)");
-
-    const noBody = await request("POST", "/api/tokens", {});
-    const expect400 = noBody.status === 400;
-    results.push({ name: "POST /api/tokens (no name/symbol)", pass: expect400, status: noBody.status });
-    console.log(expect400 ? "  OK" : "  FAIL", noBody.status, "POST /api/tokens (no name/symbol)");
+    const invalidSwapEstimate = await request("GET", "/api/swap/estimate?amountSol=0");
+    const expect400 = invalidSwapEstimate.status === 400;
+    results.push({ name: "GET /api/swap/estimate invalid amount", pass: expect400, status: invalidSwapEstimate.status });
+    console.log(expect400 ? "  OK" : "  FAIL", invalidSwapEstimate.status, "GET /api/swap/estimate invalid amount");
   } finally {
     child.kill("SIGTERM");
   }

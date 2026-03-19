@@ -4,6 +4,8 @@
 
 **Scope:** Build order, deliverables, error budget, and graduation criteria for **website_bootstrap** → optional **production_hardened**. All initial components live on the **website stack**; no cold wallets or offline process until graduation.
 
+**Model:** ASRY follows a **batched epoch profit-sharing / claim model**. Temporary anti-spam floor: **minimum claim = $0.10** (testing default; may increase later).
+
 ---
 
 ## 1. Build order (from policy §0.2)
@@ -11,8 +13,8 @@
 | Phase | Focus | Gate |
 |-------|--------|------|
 | **P0** | **Receiving** + **Sending** (money in / money out) | Must meet **error budget**; else **abandon ASRY rollout**. |
-| **P1** | **On-chain smart contract(s)** (distributor, merkle/claim, pause, optional swap wrapper) | After P0 acceptable; do not use contracts to paper over broken rails. |
-| **Bootstrap** | Pool + health JSON + `deployment_phase: website_bootstrap` | Enables E2E and agent integration. |
+| **P1** | **On-chain smart contract(s)** (epoch state, claims, distributor, pause) | After P0 acceptable; do not use contracts to paper over broken rails. |
+| **Bootstrap** | Epoch claim flow + health JSON + `deployment_phase: website_bootstrap` | Enables E2E and agent integration. |
 
 P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when P0 is on track.**
 
@@ -26,26 +28,22 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 
 | Flow | Description | Exposed via |
 |------|-------------|-------------|
-| **USDC → treasury** | User pays USDC to a published address; system detects and records (swap or direct). A **0.05% fee** is held back from each receive. | API + (optional) webhook / polling |
+| **USDC → treasury** | User pays USDC to a published address; system detects and records. A **0.05% fee** is held back from each receive. | API + (optional) webhook / polling |
 | **USDT → treasury** | Same for USDT; may normalize to USDC per policy §3.3. A **0.05% fee** is held back from each receive. | Same |
-| **USDC → ASRY (single-step)** | User gets ASRY in **one tx** (e.g. swap against ASRY/USDC pool per §1.2). | API: quote + build swap ix; or frontend that submits tx |
 | **Receive USDT or USDC** | `receiveStableToTreasury`. **USDT** → Jupiter → USDC. **USDC** → **SPL transfer only** to `treasuryUsdcAta` (no Jupiter); confirm balance or use `buildUnsignedUsdcTransferToTreasury` for payer tx. | Script / API |
-| **USDT → ASRY (single-step)** | One tx: USDT→USDC→ASRY (wrapper program or CPI) per §1.2. | Same when wrapper exists |
 | **Deposit confirmation** | User pays to treasury address → confirm payment and update state (no invoice API). | Confirm pipeline / API |
 
 ### 2.2 Deliverables
 
 - [ ] **Receiving API** — Deposit address (published); optional expiry and amount. **0.05% receive fee** on USDC/USDT (held back from each transaction).
 - [ ] **Confirmation pipeline** — On-chain or backend check that payment landed; idempotent confirmation; store tx sig + amount.
-- [ ] **Single-step swap (USDC→ASRY)** — Endpoint or client that returns **one** swap instruction (or serialized tx) for the **published ASRY/USDC pool**; no multi-hop.
 - [ ] **Idempotency** — Same idempotency key / id never double-counts or double-confirms.
 - [ ] **Errors** — Structured error codes (e.g. `payment_underpaid`, `tx_not_found`); no silent failure.
 - [ ] **Logging + metrics** — Every receive attempt (success/fail) log; counter or metric for success rate and latency.
 
 ### 2.3 Out of scope for P0 (can follow later)
 
-- USDT→ASRY **on-chain wrapper** (can be P1 or separate program).
-- Multi-hop / Jupiter as **official** path (policy forbids as primary).
+- Complex treasury strategy logic beyond receive confirmation.
 
 ---
 
@@ -100,14 +98,14 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 
 | Component | Purpose |
 |-----------|---------|
-| **Distributor / claim state** | Holds merkle root, pause flag, cooldown or period; optionally holds USDC vault; users **claim** (pull) or admin **distributes** (push) per design. |
+| **Distributor / claim state** | Holds epoch totals, claim records, pause flag, cooldown or period; optionally holds USDC vault; users **claim** (pull) or admin **distributes** (push) per design. |
 | **Pause authority** | Multisig or single upgrade authority can set pause; readable by API/health. |
-| **Optional: swap wrapper** | One tx USDT→USDC→ASRY (CPI to DEX + swap) per §1.2; publish program id + instruction layout. |
+| **Epoch finalization** | Finalize ended epoch; compute capped distributable bonus; fund payout vault; publish finalized state. |
 
 ### 5.2 Deliverables
 
 - [ ] **Account schema** — PDAs, account sizes, who can write what; document in repo (e.g. `docs/asry-program-accounts.md` or in program crate).
-- [ ] **Instruction set** — e.g. `initialize`, `set_merkle_root`, `set_pause`, `claim` (or `distribute`), etc.; list with args.
+- [ ] **Instruction set** — e.g. `initialize`, `request_redeem`, `finalize_epoch`, `claim`, `set_pause`, etc.; list with args.
 - [ ] **Deploy** to devnet first; verify with integration tests.
 - [ ] **Health / API** — Read pause + root from chain; expose in `GET /api/asry/health` (e.g. `pause_authority`, `merkle_root`).
 - [ ] **Audit** — Before mainnet; multisig upgrade authority.
@@ -127,8 +125,7 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 
 - [ ] **Health endpoint** — `GET /api/asry/health` (or static `asry-health.json`) with fields from policy §14.1:
   - Required: `policy_version`, `deployment_phase` (= `website_bootstrap`), `payout_execution` (= `website_hot_testing`).
-  - As available: `pool_address`, `lp_authority`, `pause_authority`, `btc_price_usd`, `ltv_attestation`, `emergency_mode`, `degraded_mode`, `yield_eligible`, `redemption_cooldown_days`, `redemption_delay_days`, etc.
-- [ ] **Pool integration** — If ASRY/USDC pool exists: read reserves or pool id; optional: add LP or swap via website-held keys (bootstrap only).
+  - As available: `pause_authority`, `btc_price_usd`, `ltv_attestation`, `emergency_mode`, `degraded_mode`, `yield_eligible`, `redemption_cooldown_days`, `redemption_delay_days`, `current_epoch_id`, `current_epoch_end_iso`, `minimum_claim_usd`, etc.
 - [ ] **Treasury hot wallet** — One or more keys (env or keystore) used for receives and sends; **not** cold; document that this is bootstrap-only.
 - **ASRY mint (treasury):** [3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw](https://explorer.solana.com/address/3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw) — default in `lib/asry/asry-price.cjs` and receive-reward flow.
 
@@ -140,7 +137,7 @@ website/
   routes/
     asry/
       health.cjs           # GET /api/asry/health
-      receive.cjs          # confirm, swap quote
+      receive.cjs          # confirm inbound
       send.cjs             # payout, refund (bootstrap: server signs)
   lib/
     asry/
@@ -164,7 +161,7 @@ Programs (P1) can live in `programs/` or a separate repo; link from this doc.
 |-------|----------------|
 | **Unit** | Confirm logic (amount matching, idempotency keys, error codes). |
 | **Integration** | With devnet (or testnet): send USDC/USDT to treasury → confirm tx; send USDC (payout) → confirm tx. |
-| **E2E** | Full receive path (e.g. swap USDC→ASRY) and send path (payout) once; measure success rate over N runs. |
+| **E2E** | Full receive path and send path (payout) once; measure success rate over N runs. |
 | **Load (optional)** | Sustained receive/send volume to find timeouts and bottlenecks. |
 
 **P0 gate:** E2E and integration tests **green** and **error budget** met (or explicitly waived with doc).
@@ -187,11 +184,11 @@ When moving from **website_bootstrap** to **production_hardened** (policy §0.1)
 
 | # | Item | Phase |
 |---|------|--------|
-| 1 | Receiving API + confirmation + single-step USDC→ASRY; idempotency; errors; metrics | P0 |
+| 1 | Receiving API + confirmation for USDC/USDT; idempotency; errors; metrics | P0 |
 | 2 | Sending pipeline + retries + stuck handling; errors; metrics | P0 |
 | 3 | Error budget defined; abandon-ship decision if P0 fails | P0 |
 | 4 | Health endpoint with `deployment_phase`, `policy_version`, and §14.1 fields | Bootstrap |
-| 5 | Pool + treasury hot wallet integration (bootstrap) | Bootstrap |
+| 5 | Treasury hot wallet integration + epoch metadata (bootstrap) | Bootstrap |
 | 6 | On-chain program(s): account schema, instructions, deploy devnet, pause + root in health | P1 |
 | 7 | Graduation: cold, offline bot, runbooks, `production_hardened` | Post-bootstrap |
 

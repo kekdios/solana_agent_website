@@ -82,6 +82,30 @@
       .api-content .method { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
       .api-content .method.get { background: #34d39922; color: #34d399; }
       .api-content .method.post { background: #3b82f622; color: #60a5fa; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .api-content { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+      }
     </style>
   </head>
   <body>
@@ -128,11 +152,12 @@
     <div class="site-main">
       <div class="api-content">
         <h1>API Reference</h1>
-        <p class="tagline">HTTP APIs available to agents and the Proof of Reserves frontend. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
+        <p class="tagline">HTTP APIs available to agents and the website frontend. All endpoints return JSON. CORS is enabled for <code>*</code>.</p>
 
         <p style="margin:1rem 0; padding:0.75rem 1rem; background:rgba(52,211,153,0.12); border-left:4px solid #34d399; border-radius:0 0.5rem 0.5rem 0;"><strong>If you're an agent, start here (MCP):</strong> Connect the <a href="#mcp" style="color:#34d399;">MCP server</a> (<code>npm run mcp</code>) for typed tools and discovery—no HTTP wiring. Or use <code>GET /api/openapi.json</code> for the full schema.</p>
 
         <p><strong>Machine-readable schema:</strong> <a href="/api/openapi.json" style="color:#34d399;">GET /api/openapi.json</a> — OpenAPI 3.0 spec (endpoints, request/response schemas, error codes). Use this for agent tooling and codegen.</p>
+        <p style="margin-top:0.75rem; color:#94a3b8;">ASRY follows an epoch-based, capped, pro-rata claim model. Historical transaction views are sourced directly from on-chain explorers and reserve pages, not a server-side history database.</p>
 
         <div class="agent-actions" style="margin:1.5rem 0; padding:1rem 1.25rem; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.3); border-radius:0.75rem;">
           <p style="margin:0 0 0.5rem; font-weight:600; color:#e2e8f0;">For agents: swap (SOL → BTC)</p>
@@ -215,26 +240,22 @@ curl -s -X POST https://www.solanaagent.app/api/swap/create \
         <p>Recent Solana transactions for the reserve address.</p>
         <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "blockTime", "err" }, ... ] }</code></p>
 
-        <h2>4. ABSR (Arbitrage / reserve summary)</h2>
+        <h2>4. ABSR reserve summary</h2>
         <p>ABSR (Agent Bitcoin Strategic Reserve) is 1:1 with the Bitcoin reserve: one satoshi in the reserve = one ABSR. A daily job mints ABSR when the reserve balance exceeds the on-chain supply.</p>
 
         <h3><span class="method get">GET</span> <span class="endpoint">/api/arbitrage/summary</span></h3>
         <p>BTC/SOL prices (Hyperliquid) and ABSR metrics: <code>absrSupplySats</code> (reserve balance in sats), <code>absrSupplyUsd</code>, <code>absrTokenSupply</code> (on-chain token supply).</p>
         <p><strong>Response (200):</strong> <code>btcPriceUsd</code>, <code>solPriceUsd</code>, <code>absrSupplySats</code>, <code>absrSupplyUsd</code>, <code>absrTokenSupply</code>.</p>
 
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/arbitrage/transactions</span></h3>
-        <p>ABSR-related transactions from the database (most recent first, up to 100). <code>type</code> is <code>issue</code> when a reserve SOL→BTC swap completes, or <code>mint</code> when the daily reserve sync mints ABSR to match the Bitcoin reserve balance. Requires <code>DATABASE_URL</code>; returns empty list if DB is not configured.</p>
-        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "txId", "type", "amountSats", "amountUsd", "blockTime" }, ... ] }</code>. <code>signature</code> may be null for older issue rows; mint rows include the Solana tx signature.</p>
+        <p style="margin-top:0.75rem; color:#94a3b8;">
+          ABSR and reserve transaction history are read directly from on-chain explorers/pages (no server-side history database).
+        </p>
 
         <h2>5. Swap (reserve SOL → BTC only, via LI.FI)</h2>
         <p>Only <strong>SOL → BTC</strong> is supported. The server uses <a href="https://li.fi" target="_blank" rel="noopener noreferrer">LI.FI</a> to get a quote, sign and submit the Solana transaction, and track status. BTC is sent to the reserve Bitcoin address.</p>
         <p><strong>Custody:</strong> Swaps are fulfilled via a <strong>managed reserve (custodial)</strong>. The server holds the reserve key and signs; users do not sign on-chain swap transactions. Funds are taken from the reserve Solana wallet; BTC is sent to the reserve Bitcoin address.</p>
         <p><strong>Confirmation time:</strong> Bitcoin settlement can take from several minutes up to a few hours depending on network congestion.</p>
         <p><strong>Success guarantee (swap):</strong> Once <code>POST /api/swap/create</code> returns <code>initiated: true</code>, the Solana side is submitted. BTC will be sent to the reserve address typically within a few minutes to an hour; in high congestion, allow up to a few hours. Poll <code>GET /api/swap/status/:id</code> until <code>status</code> is <code>finished</code> or <code>failed</code>.</p>
-
-        <h3><span class="method get">GET</span> <span class="endpoint">/api/exchanges/transactions</span></h3>
-        <p>Reserve SOL→BTC swap history (from Postgres).</p>
-        <p><strong>Response (200):</strong> <code>{ "transactions": [ { "signature", "txId", "solAmount", "btcSats", "blockTime" }, ... ] }</code></p>
 
         <h3><span class="method get">GET</span> <span class="endpoint">/api/swap/min</span></h3>
         <p>Minimum SOL amount and current reserve SOL balance for SOL→BTC swap.</p>

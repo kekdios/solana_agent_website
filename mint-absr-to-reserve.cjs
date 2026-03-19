@@ -10,7 +10,6 @@
  *
  * Env: BTC_PRIVATE_KEY_WIF (or ABSR_BTC_RESERVE_ADDRESS), SOLANA_PRIVATE_KEY,
  *      TREASURY_SOLANA_ADDRESS, SOLANA_RPC_URL, ABSR_MINT_ADDRESS (optional).
- *      DATABASE_URL (optional): if set, inserts a row into arbitrage_transactions after each mint.
  * Test mode: set TEST_MINT_ABSR=100 to mint exactly that amount (skips reserve check; for local testing only).
  */
 
@@ -27,14 +26,6 @@ const MIN_SOL_FOR_MINT_LAMPORTS = Number(process.env.MIN_SOL_FOR_MINT_LAMPORTS) 
 /** If set, mint exactly this many ABSR (skips reserve/supply check; for testing only). */
 const TEST_MINT_ABSR = process.env.TEST_MINT_ABSR != null && process.env.TEST_MINT_ABSR !== "" ? Math.max(0, Math.floor(Number(process.env.TEST_MINT_ABSR))) : null;
 
-let pgPool = null;
-if (process.env.DATABASE_URL) {
-  try {
-    const { Pool } = require("pg");
-    const connectionString = (process.env.DATABASE_URL || "").trim();
-    if (connectionString) pgPool = new Pool({ connectionString });
-  } catch (_) {}
-}
 
 function getBtcKey() {
   const wif = process.env.BTC_PRIVATE_KEY_WIF || process.env.BTC_PRIVATE_KEY;
@@ -144,17 +135,6 @@ async function main() {
   const sig = await mintTo(conn, signer, mintPubkey, ata.address, signer.publicKey, toMint);
   console.log("Minted", toMint, "ABSR to treasury. Signature:", sig);
 
-  if (pgPool) {
-    try {
-      await pgPool.query(
-        "INSERT INTO arbitrage_transactions (external_id, type, amount_sats, amount_usd, status, signature) VALUES ($1, $2, $3, $4, $5, $6)",
-        [sig, "mint", toMint, null, "confirmed", sig]
-      );
-      console.log("Recorded mint in arbitrage_transactions.");
-    } catch (e) {
-      console.warn("Could not record mint in DB:", e.message || e);
-    }
-  }
 }
 
 main().catch((err) => {

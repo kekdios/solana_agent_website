@@ -39,8 +39,11 @@
       .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; }
       .balance-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1.5rem; margin-bottom: 1rem; }
       .balance-main { font-size: 1.25rem; color: #34d399; font-weight: 600; }
-      .addr-qr { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-      .addr-qr img { width: 140px; height: 140px; border-radius: 0.5rem; background: #fff; }
+      .addr-qr { margin-bottom: 1rem; }
+      .balance-tokens { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: center; }
+      .balance-token { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 1rem; color: #cbd5e1; }
+      .balance-token .token-icon { width: 1.25rem; height: 1.25rem; object-fit: contain; flex-shrink: 0; }
+      .balance-token .symbol { font-weight: 600; color: #34d399; }
       .addr-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
       .addr-copy-btn { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; padding: 0.25rem; color: #94a3b8; border-radius: 0.375rem; flex-shrink: 0; }
       .addr-copy-btn:hover { color: #34d399; background: rgba(255,255,255,0.05); }
@@ -67,6 +70,34 @@
       footer { margin-top: auto; padding: 2rem 1.5rem; font-size: 0.8125rem; color: #64748b; border-top: 1px solid #1e1e24; width: 100%; text-align: center; }
       footer a { color: #34d399; text-decoration: none; }
       footer a:hover { text-decoration: underline; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .page-title, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .card-header-row { flex-wrap: wrap; align-items: flex-start; }
+        .addr-text { max-width: 100%; }
+        .balance-tokens { gap: 0.75rem 1rem; }
+        .pagination { flex-wrap: wrap; }
+      }
     </style>
   </head>
   <body>
@@ -113,20 +144,32 @@
     <div class="site-main">
       <div class="page-title">
         <div class="title-row">
-          <img src="https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/sol.svg" alt="" class="title-logo" width="36" height="36" />
+          <img src="SOL.png" alt="SOL" class="title-logo" width="36" height="36" />
           <h1>Solana Reserve</h1>
         </div>
         <p class="tagline">Proof of reserves — Solana address, balance, and transactions</p>
       </div>
       <main>
+        <section class="reserve-card" id="cold-storage-section" aria-labelledby="cold-heading">
+          <div class="card-header-row">
+            <img src="SOL.png" alt="" class="panel-title-icon" width="24" height="24" />
+            <h2 id="cold-heading">Solana – Cold Storage</h2>
+            <button type="button" class="btn" id="cold-refresh" title="Refresh balance">Refresh</button>
+          </div>
+          <div class="balance-row">
+            <div class="balance-tokens" id="cold-balances"></div>
+          </div>
+          <div class="addr-qr" id="cold-addr-row"></div>
+          <div id="cold-explorer"></div>
+        </section>
         <section class="reserve-card" id="solana-section" aria-labelledby="sol-heading">
           <div class="card-header-row">
-            <img src="https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/sol.svg" alt="" class="panel-title-icon" width="24" height="24" />
-            <h2 id="sol-heading">Solana</h2>
+            <img src="SOL.png" alt="" class="panel-title-icon" width="24" height="24" />
+            <h2 id="sol-heading">Solana – Hot Wallet</h2>
             <button type="button" class="btn" id="sol-refresh" title="Refresh balance and transactions">Refresh</button>
           </div>
           <div class="balance-row">
-            <span class="balance-main" id="sol-balance">—</span>
+            <div class="balance-tokens" id="sol-balances"></div>
           </div>
           <div class="addr-qr" id="sol-addr-qr"></div>
           <div id="sol-explorer"></div>
@@ -151,10 +194,9 @@
       const API = "/api";
       const ROWS_PER_PAGE = 10;
       const SOLANA_EXPLORER_BASE = "https://explorer.solana.com";
+      const COLD_STORAGE_ADDRESS = "ABnvL6oaY7PqaD5EwNUfRgLFTmCuWxmwBudCzPLhDxkb";
+      const TOKEN_ICONS = { sol: "SOL.png", usdc: "USDC.png", usdt: "USDT.png" };
 
-      function qrUrl(addr) {
-        return "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + encodeURIComponent(addr);
-      }
       const COPY_ICON_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg>";
       function addrWithCopyHtml(addr) {
         return "<div class=\"addr-row\"><span class=\"addr-text\">" + escapeHtml(addr) + "</span><button type=\"button\" class=\"addr-copy-btn\" title=\"Copy address\" aria-label=\"Copy address\" data-address=\"" + escapeHtml(addr) + "\">" + COPY_ICON_SVG + "</button></div>";
@@ -163,8 +205,27 @@
       function formatSol(balanceSol) {
         if (balanceSol == null) return "—";
         const n = Number(balanceSol);
-        if (n === 0) return "0 SOL";
-        return n.toFixed(4) + " SOL";
+        if (n === 0) return "0";
+        return n.toFixed(4);
+      }
+      function formatToken(amount) {
+        if (amount != null && amount !== "") {
+          const n = Number(amount);
+          if (!Number.isNaN(n)) return n === 0 ? "0" : n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+        }
+        return "—";
+      }
+      function renderBalanceTokens(containerId, sol, usdc, usdt) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const solStr = formatSol(sol);
+        const usdcStr = formatToken(usdc);
+        const usdtStr = formatToken(usdt);
+        const parts = [];
+        parts.push("<span class=\"balance-token\"><img src=\"" + TOKEN_ICONS.sol + "\" alt=\"\" class=\"token-icon\" /><span class=\"symbol\">SOL</span> " + (solStr === "—" ? "—" : solStr + " SOL") + "</span>");
+        parts.push("<span class=\"balance-token\"><img src=\"" + TOKEN_ICONS.usdc + "\" alt=\"\" class=\"token-icon\" /><span class=\"symbol\">USDC</span> " + (usdcStr === "—" ? "—" : usdcStr + " USDC") + "</span>");
+        parts.push("<span class=\"balance-token\"><img src=\"" + TOKEN_ICONS.usdt + "\" alt=\"\" class=\"token-icon\" /><span class=\"symbol\">USDT</span> " + (usdtStr === "—" ? "—" : usdtStr + " USDT") + "</span>");
+        el.innerHTML = parts.join("");
       }
       function formatDate(ts) {
         if (ts == null) return "—";
@@ -247,9 +308,8 @@
           const [reserves, proof, solList] = await Promise.all([loadReserves(), loadProof(), loadSolTxs()]);
           const sol = reserves?.solana;
           if (sol?.address) {
-            document.getElementById("sol-balance").textContent = formatSol(sol.balanceSol);
-            document.getElementById("sol-addr-qr").innerHTML =
-              "<img src=\"" + qrUrl(sol.address) + "\" alt=\"SOL address QR\" />" + addrWithCopyHtml(sol.address);
+            renderBalanceTokens("sol-balances", sol.balanceSol, sol.balanceUsdc, sol.balanceUsdt);
+            document.getElementById("sol-addr-qr").innerHTML = addrWithCopyHtml(sol.address);
             document.getElementById("sol-explorer").innerHTML =
               "<a class=\"btn\" href=\"" + SOLANA_EXPLORER_BASE + "/address/" + sol.address + "\" target=\"_blank\" rel=\"noopener\">View in block explorer (Solana Explorer)</a>";
             if (proof?.solana?.signature) {
@@ -259,7 +319,7 @@
               document.getElementById("sol-proof").innerHTML = "<span class=\"error\">Proof of ownership not available.</span>";
             }
           } else {
-            document.getElementById("sol-balance").textContent = "—";
+            renderBalanceTokens("sol-balances", null, null, null);
           }
           solTxs = solList || [];
           renderSolTable();
@@ -283,8 +343,48 @@
         }
       });
 
+      function renderColdBalance(supply) {
+        const el = document.getElementById("cold-balances");
+        if (!el) return;
+        if (supply != null && supply !== "" && !Number.isNaN(Number(supply))) {
+          const n = Number(supply);
+          const str = n.toLocaleString(undefined, { maximumFractionDigits: 6, minimumFractionDigits: 0 });
+          el.innerHTML = "<span class=\"balance-token\"><span class=\"balance-main\">" + escapeHtml(str) + "</span> <span class=\"symbol\">CASH</span> (token supply)</span>";
+        } else {
+          el.innerHTML = "<span class=\"balance-token\"><span class=\"balance-main\">—</span></span>";
+        }
+      }
+
+      async function refreshColdStorage() {
+        const btn = document.getElementById("cold-refresh");
+        if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+        document.getElementById("cold-addr-row").innerHTML = addrWithCopyHtml(COLD_STORAGE_ADDRESS);
+        document.getElementById("cold-explorer").innerHTML =
+          "<a class=\"btn\" href=\"" + SOLANA_EXPLORER_BASE + "/address/" + COLD_STORAGE_ADDRESS + "\" target=\"_blank\" rel=\"noopener\">View in block explorer (Solana Explorer)</a>";
+        try {
+          var supplyRes = await fetch(API + "/token-supply?mint=" + encodeURIComponent(COLD_STORAGE_ADDRESS));
+          if (supplyRes.ok) {
+            const data = await supplyRes.json();
+            renderColdBalance(data.supply);
+          } else {
+            var addrRes = await fetch(API + "/reserves/solana-address?address=" + encodeURIComponent(COLD_STORAGE_ADDRESS));
+            if (addrRes.ok) {
+              const data = await addrRes.json();
+              renderBalanceTokens("cold-balances", data.balanceSol, data.balanceUsdc, data.balanceUsdt);
+            } else {
+              renderColdBalance(null);
+            }
+          }
+        } catch (_) {
+          renderColdBalance(null);
+        }
+        if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+      }
+
       document.getElementById("sol-refresh").addEventListener("click", refreshSolana);
+      document.getElementById("cold-refresh").addEventListener("click", refreshColdStorage);
       refreshSolana();
+      refreshColdStorage();
     </script>
   </body>
 </html>

@@ -15,8 +15,6 @@ All files under `website/` excluding `node_modules/` and `.git/`:
 | `api.html` | 16768 | Yes |
 | `openapi.json` | — | Yes |
 | `mcp-server.cjs` | — | No (run locally / agent env) |
-| `db/README.md` | 1560 | No |
-| `db/schema.sql` | 3666 | Yes |
 | `deploy-website-to-droplet.sh` | 4175 | No |
 | `icon_dock.png` | 27357 | Yes |
 | `index.html` | — | Yes |
@@ -53,11 +51,7 @@ From `deploy-website-to-droplet.sh` (SCP targets):
 - `openapi.json`
 - `package.json`
 
-**`/var/www/solana_agent/db/`:**
-- `schema.sql`
-
 **Not deployed (local-only):**
-- `db/README.md`
 - `deploy-website-to-droplet.sh`
 - `package-lock.json`
 - `scripts/*`
