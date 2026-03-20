@@ -11,6 +11,7 @@ const bitcoinMessage = require("bitcoinjs-message");
 const nacl = require("tweetnacl");
 const { receiveStableConfirmAndReward } = require("./lib/asry/receive-confirm-and-reward.cjs");
 const { tryHandleClawstr } = require("./clawstr/mount.cjs");
+const { tryHandleBulletin } = require("./clawstr/bulletin-mount.cjs");
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
@@ -338,6 +339,16 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) {
       res.statusCode = 500;
       res.end(JSON.stringify({ error_code: "CLAWSTR_ERROR", error: String(e && e.message ? e.message : e) }));
+    }
+    return;
+  }
+  try {
+    if (await tryHandleBulletin(req, res, path, url)) return;
+  } catch (e) {
+    console.error("[bulletin]", e);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error_code: "BULLETIN_ERROR", error: String(e && e.message ? e.message : e) }));
     }
     return;
   }

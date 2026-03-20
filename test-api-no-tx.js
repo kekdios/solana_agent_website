@@ -7,8 +7,9 @@ const http = require("http");
 const { spawn } = require("child_process");
 const path = require("path");
 
-const PORT = 3011;
+const PORT = 3100 + Math.floor(Math.random() * 500);
 const BASE = `http://127.0.0.1:${PORT}`;
+const BULLETIN_TEST_TOKEN = "test-bulletin-admin-token";
 
 function request(method, pathStr, body) {
   return new Promise((resolve, reject) => {
@@ -42,7 +43,14 @@ function waitForPort(port, ms) {
 async function run() {
   const serverPath = path.join(__dirname, "api-server.cjs");
   const child = spawn(process.execPath, [serverPath], {
-    env: { ...process.env, API_PORT: String(PORT) },
+    env: {
+      ...process.env,
+      API_PORT: String(PORT),
+      BULLETIN_ADMIN_TOKEN: BULLETIN_TEST_TOKEN,
+      BULLETIN_ALLOW_FAKE_CONFIRM: "1",
+      BULLETIN_TREASURY_SOLANA_ADDRESS:
+        process.env.BULLETIN_TREASURY_SOLANA_ADDRESS || process.env.TREASURY_SOLANA_ADDRESS || "11111111111111111111111111111111",
+    },
     cwd: __dirname,
     stdio: "pipe",
   });
@@ -74,10 +82,48 @@ async function run() {
     ok("GET /api/v1/clawstr/feed?limit=5", await request("GET", "/api/v1/clawstr/feed?limit=5"));
     ok("GET /api/v1/clawstr/feed?limit=5&ai_only=1", await request("GET", "/api/v1/clawstr/feed?limit=5&ai_only=1"));
     ok("GET /api/v1/clawstr/communities", await request("GET", "/api/v1/clawstr/communities"));
+    ok("GET /api/v1/bulletin/health", await request("GET", "/api/v1/bulletin/health"));
     ok("GET /api/transactions/bitcoin", await request("GET", "/api/transactions/bitcoin"));
     ok("GET /api/transactions/solana", await request("GET", "/api/transactions/solana"));
 
     console.log("\n--- POST (no chain tx) ---");
+    const piRes = await request("POST", "/api/v1/bulletin/payment-intent", {
+      wallet_address: "7qx97x9cTestWallet1111111111111111111111111",
+      amount_lamports: 1000,
+    });
+    ok("POST /api/v1/bulletin/payment-intent", piRes);
+    let piId = null;
+    try {
+      piId = JSON.parse(piRes.data).payment_intent.id;
+    } catch (_) {}
+    if (!piId) throw new Error("bulletin payment-intent did not return id");
+    const unauthorizedConfirm = await request("POST", "/api/v1/bulletin/payment-confirm", { payment_intent_id: piId });
+    results.push({
+      name: "POST /api/v1/bulletin/payment-confirm unauthorized",
+      pass: unauthorizedConfirm.status === 401,
+      status: unauthorizedConfirm.status,
+    });
+    console.log(unauthorizedConfirm.status === 401 ? "  OK" : "  FAIL", unauthorizedConfirm.status, "POST /api/v1/bulletin/payment-confirm unauthorized");
+    // Confirm with bearer token using raw request helper
+    const confirmAuthed = await new Promise((resolve, reject) => {
+      const url = new URL("/api/v1/bulletin/payment-confirm", BASE);
+      const opts = { hostname: url.hostname, port: url.port, path: url.pathname + url.search, method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + BULLETIN_TEST_TOKEN } };
+      const req = http.request(opts, (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => resolve({ status: res.statusCode, data }));
+      });
+      req.on("error", reject);
+      req.write(JSON.stringify({ payment_intent_id: piId, tx_signature: "test_sig" }));
+      req.end();
+    });
+    ok("POST /api/v1/bulletin/payment-confirm", confirmAuthed);
+    const postRes = await request("POST", "/api/v1/bulletin/post", {
+      payment_intent_id: piId,
+      content: "hello from test bulletin",
+    });
+    ok("POST /api/v1/bulletin/post", postRes);
+
     console.log("\n--- Error cases (no tx) ---");
     const invalidSwapEstimate = await request("GET", "/api/swap/estimate?amountSol=0");
     const expect400 = invalidSwapEstimate.status === 400;

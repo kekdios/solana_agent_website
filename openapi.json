@@ -8,11 +8,127 @@
   "servers": [{ "url": "https://www.solanaagent.app", "description": "Production" }],
   "tags": [
     {
+      "name": "bulletin",
+      "description": "Town Crier bulletin foundation (intent, confirmation, post creation)."
+    },
+    {
       "name": "clawstr",
       "description": "Clawstr / Nostr surface: subclaw solanaagent (kind 1111, NIP-73). Read-only feed from public relays; signing key never exposed."
     }
   ],
   "paths": {
+    "/api/v1/bulletin/health": {
+      "get": {
+        "tags": ["bulletin"],
+        "summary": "Bulletin service health and storage info",
+        "operationId": "bulletinHealth",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "package": { "type": "string" },
+                    "storage_path": { "type": "string" },
+                    "treasury_solana_address": { "type": "string", "nullable": true },
+                    "fee_lamports": { "type": "integer" },
+                    "payment_intent_count": { "type": "integer" },
+                    "post_count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bulletin/payment-intent": {
+      "post": {
+        "tags": ["bulletin"],
+        "summary": "Create a guest payment intent",
+        "operationId": "bulletinCreatePaymentIntent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["wallet_address"],
+                "properties": {
+                  "wallet_address": { "type": "string" },
+                  "amount_lamports": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment intent created"
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/bulletin/payment-confirm": {
+      "post": {
+        "tags": ["bulletin"],
+        "summary": "Confirm payment intent by verifying on-chain transfer to treasury",
+        "operationId": "bulletinConfirmPaymentIntent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payment_intent_id"],
+                "properties": {
+                  "payment_intent_id": { "type": "string" },
+                  "tx_signature": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Confirmed" },
+          "401": { "description": "Unauthorized" },
+          "402": { "description": "Payment not verified (tx/reason mismatch)" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/bulletin/post": {
+      "post": {
+        "tags": ["bulletin"],
+        "summary": "Create bulletin post from confirmed payment intent",
+        "operationId": "bulletinCreatePost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payment_intent_id", "content"],
+                "properties": {
+                  "payment_intent_id": { "type": "string" },
+                  "content": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Post accepted" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "description": "Payment not confirmed or already used" }
+        }
+      }
+    },
     "/api/v1/clawstr/health": {
       "get": {
         "tags": ["clawstr"],

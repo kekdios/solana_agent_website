@@ -1,0 +1,124 @@
+{
+  "payment_intents": [
+    {
+      "id": "pi_b790ab37f3c70935",
+      "reference": "ref_1726c276d50426d1",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "awaiting_payment",
+      "created_at": "2026-03-20T09:06:55.262Z",
+      "expires_at": "2026-03-20T09:21:55.262Z",
+      "confirmed_at": null,
+      "tx_signature": null
+    },
+    {
+      "id": "pi_4b14d0e7d97c6bd6",
+      "reference": "ref_b0b2a2023df8ab82",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "confirmed",
+      "created_at": "2026-03-20T09:07:32.958Z",
+      "expires_at": "2026-03-20T09:22:32.958Z",
+      "confirmed_at": "2026-03-20T09:07:32.962Z",
+      "tx_signature": "test_sig"
+    },
+    {
+      "id": "pi_e8641d8d5d51b09a",
+      "reference": "ref_dc43dfaf4e44f679",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "confirmed",
+      "created_at": "2026-03-20T09:08:22.496Z",
+      "expires_at": "2026-03-20T09:23:22.496Z",
+      "confirmed_at": "2026-03-20T09:08:22.499Z",
+      "tx_signature": "test_sig"
+    },
+    {
+      "id": "pi_b30a561370d4ca42",
+      "reference": "ref_a954f88fa2627aed",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "confirmed",
+      "created_at": "2026-03-20T09:12:56.152Z",
+      "expires_at": "2026-03-20T09:27:56.152Z",
+      "confirmed_at": "2026-03-20T09:12:56.157Z",
+      "tx_signature": "test_sig",
+      "verification": {
+        "method": "fake",
+        "reason": "fake_confirm_enabled"
+      }
+    },
+    {
+      "id": "pi_8429114431e52f16",
+      "reference": "ref_b50be4cfb98a0412",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "confirmed",
+      "created_at": "2026-03-20T09:13:18.602Z",
+      "expires_at": "2026-03-20T09:28:18.602Z",
+      "confirmed_at": "2026-03-20T09:13:18.606Z",
+      "tx_signature": "test_sig",
+      "verification": {
+        "method": "fake",
+        "reason": "fake_confirm_enabled"
+      }
+    },
+    {
+      "id": "pi_1ba728d5dbf2276f",
+      "reference": "ref_385768cae9499598",
+      "wallet_address": "7qx97x9cTestWallet1111111111111111111111111",
+      "amount_lamports": 1000,
+      "status": "confirmed",
+      "created_at": "2026-03-20T09:26:40.361Z",
+      "expires_at": "2026-03-20T09:41:40.361Z",
+      "confirmed_at": "2026-03-20T09:26:40.366Z",
+      "tx_signature": "test_sig",
+      "verification": {
+        "method": "fake",
+        "reason": "fake_confirm_enabled"
+      }
+    }
+  ],
+  "posts": [
+    {
+      "id": "post_a26f2728392887d5",
+      "payment_intent_id": "pi_4b14d0e7d97c6bd6",
+      "content": "hello from test bulletin",
+      "status": "accepted",
+      "nostr_event_id": null,
+      "created_at": "2026-03-20T09:07:32.963Z"
+    },
+    {
+      "id": "post_30a92e8f1b5afead",
+      "payment_intent_id": "pi_e8641d8d5d51b09a",
+      "content": "hello from test bulletin",
+      "status": "accepted",
+      "nostr_event_id": null,
+      "created_at": "2026-03-20T09:08:22.500Z"
+    },
+    {
+      "id": "post_3eeb26f03523c777",
+      "payment_intent_id": "pi_b30a561370d4ca42",
+      "content": "hello from test bulletin",
+      "status": "accepted",
+      "nostr_event_id": null,
+      "created_at": "2026-03-20T09:12:56.158Z"
+    },
+    {
+      "id": "post_baf4f1d969d3cc35",
+      "payment_intent_id": "pi_8429114431e52f16",
+      "content": "hello from test bulletin",
+      "status": "accepted",
+      "nostr_event_id": null,
+      "created_at": "2026-03-20T09:13:18.608Z"
+    },
+    {
+      "id": "post_e97deb50078459d2",
+      "payment_intent_id": "pi_1ba728d5dbf2276f",
+      "content": "hello from test bulletin",
+      "status": "accepted",
+      "nostr_event_id": null,
+      "created_at": "2026-03-20T09:26:40.367Z"
+    }
+  ]
+}
