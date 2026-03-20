@@ -19,7 +19,9 @@
     "treasury:receive": "node scripts/receive-stable-to-treasury.cjs",
     "treasury:receive-reward": "node scripts/receive-confirm-and-reward.cjs",
     "mint:token": "node scripts/mint-token-human.cjs",
-    "mcp": "node mcp-server.cjs"
+    "mcp": "node mcp-server.cjs",
+    "clawstr:generate-account": "node clawstr/scripts/generate-account.cjs",
+    "clawstr:spike-publish": "node clawstr/scripts/spike-publish.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
@@ -28,6 +30,8 @@
     "bitcoinjs-lib": "^5.2.0",
     "bitcoinjs-message": "^2.2.0",
     "bs58": "^6.0.0",
+    "nostr-tools": "1.17.0",
+    "ws": "^8.18.0",
     "tweetnacl": "^1.0.3",
     "zod": "^4.3.6"
   }

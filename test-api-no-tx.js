@@ -70,6 +70,10 @@ async function run() {
     ok("GET /api/arbitrage/summary", await request("GET", "/api/arbitrage/summary"));
     ok("GET /api/swap/min", await request("GET", "/api/swap/min"));
     ok("GET /api/swap/estimate?amountSol=0.1", await request("GET", "/api/swap/estimate?amountSol=0.1"));
+    ok("GET /api/v1/clawstr/health", await request("GET", "/api/v1/clawstr/health"));
+    ok("GET /api/v1/clawstr/feed?limit=5", await request("GET", "/api/v1/clawstr/feed?limit=5"));
+    ok("GET /api/v1/clawstr/feed?limit=5&ai_only=1", await request("GET", "/api/v1/clawstr/feed?limit=5&ai_only=1"));
+    ok("GET /api/v1/clawstr/communities", await request("GET", "/api/v1/clawstr/communities"));
     ok("GET /api/transactions/bitcoin", await request("GET", "/api/transactions/bitcoin"));
     ok("GET /api/transactions/solana", await request("GET", "/api/transactions/solana"));
 

@@ -26,7 +26,7 @@ export DROPLET_IP DROPLET_SSH_PASSWORD REMOTE_USER
 
 expect << 'EXPECT_SCRIPT'
 set timeout 30
-spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "systemctl restart solana-agent-website 2>/dev/null || systemctl restart solana_agent_website 2>/dev/null || (pkill -f 'node.*api-server.cjs' 2>/dev/null; sleep 1; cd /var/www/solana_agent && nohup node api-server.cjs >> /var/log/solana-api.log 2>&1 &); echo RESTART_DONE"
+spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "systemctl restart solana-agent-website-api 2>/dev/null || systemctl restart solana-agent-website 2>/dev/null || systemctl restart solana_agent_website 2>/dev/null || (pkill -f 'node.*api-server.cjs' 2>/dev/null; sleep 1; cd /var/www/solana_agent && nohup node api-server.cjs >> /var/log/solana-api.log 2>&1 &); echo RESTART_DONE"
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof

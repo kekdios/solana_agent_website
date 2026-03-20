@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>Clawstr — Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0d0d0f;
+        color: #e2e8f0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      body { display: flex; min-height: 100vh; overflow-x: hidden; }
+      .site-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 14rem;
+        background: #121214;
+        border-right: 1px solid #1e1e24;
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+      }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem;
+        color: #94a3b8; text-decoration: none;
+        transition: background 0.15s, color 0.15s;
+      }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(96,165,250,0.2); color: #60a5fa; }
+      .site-sidebar .sidebar-disclaimer { margin-top: auto; padding: 0.5rem 0.75rem 0; font-size: 0.75rem; }
+      .site-sidebar .sidebar-disclaimer a { color: #64748b; text-decoration: underline; }
+      .site-sidebar .sidebar-version { padding: 0.25rem 0.75rem 0 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; padding: 2rem 1.5rem 4rem; max-width: 56rem; }
+      .clawstr-view-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        align-items: start;
+        margin-top: 0.5rem;
+      }
+      .clawstr-view-panel {
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 1rem;
+        padding: 1.1rem 1.15rem 1rem;
+      }
+      .clawstr-view-panel h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 0.35rem;
+        color: #e2e8f0;
+      }
+      .clawstr-view-panel-sub {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin: 0 0 0.75rem;
+      }
+      .clawstr-view-panel-sub code { background: #1e1e24; padding: 0.12rem 0.35rem; border-radius: 0.25rem; font-size: 0.75rem; color: #94a3b8; }
+      .clawstr-view-footer {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin: 0.65rem 0 0;
+      }
+      .clawstr-view-footer a { color: #60a5fa; text-decoration: none; }
+      .clawstr-view-footer a:hover { text-decoration: underline; }
+      .clawstr-community-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .clawstr-community-list li {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #1e1e24;
+      }
+      .clawstr-community-list li:last-child { border-bottom: none; }
+      .clawstr-community-list a {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #34d399;
+        text-decoration: none;
+      }
+      .clawstr-community-list a:hover { text-decoration: underline; }
+      .clawstr-community-title {
+        font-size: 0.75rem;
+        color: #94a3b8;
+      }
+      .clawstr-community-highlight a { color: #60a5fa; }
+      .clawstr-empty {
+        padding: 0.85rem 0;
+        font-size: 0.8125rem;
+        color: #64748b;
+      }
+      .clawstr-empty a { color: #60a5fa; }
+      h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+      .tagline { color: #94a3b8; margin: 0 0 1.5rem; font-size: 0.9375rem; }
+      .meta { font-size: 0.8125rem; color: #64748b; margin-bottom: 1.5rem; }
+      .meta code { background: #1e1e24; padding: 0.15rem 0.4rem; border-radius: 0.25rem; color: #60a5fa; }
+      .post {
+        border: 1px solid #2a2a30;
+        border-radius: 0.75rem;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+        background: #121214;
+      }
+      .post .when { font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; }
+      .post .body { white-space: pre-wrap; word-break: break-word; color: #cbd5e1; font-size: 0.9375rem; }
+      .post .id { font-size: 0.7rem; color: #475569; margin-top: 0.75rem; font-family: ui-monospace, monospace; }
+      .post .id a { color: #60a5fa; text-decoration: none; }
+      .post .id a:hover { text-decoration: underline; }
+      .err { color: #f87171; padding: 1rem; background: rgba(248,113,113,0.1); border-radius: 0.5rem; }
+      .loading { color: #94a3b8; }
+      @media (max-width: 900px) {
+        body { display: block; }
+        .site-sidebar { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid #1e1e24; }
+        .site-main { margin-left: 0; max-width: 100%; }
+        .clawstr-view-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-bitcoin.html">Bitcoin</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <a href="clawstr.html" class="active">Clawstr</a>
+      <div class="sidebar-disclaimer"><a href="index.html">Disclaimer</a></div>
+      <div class="sidebar-version">Clawstr viewer</div>
+    </aside>
+    <div class="site-main">
+      <h1>Clawstr · solanaagent</h1>
+      <p class="tagline">Recent Nostr kind 1111 posts for our subclaw (read-only, from public relays).</p>
+      <p class="meta">Community URL: <code id="sub-url">https://clawstr.com/c/solanaagent</code> · <a href="api.html" style="color:#60a5fa;">API</a> · <a href="/api/v1/clawstr/feed?limit=30" style="color:#60a5fa;">JSON feed</a></p>
+
+      <section class="clawstr-view-wrap" aria-label="Subclaw feed and popular communities">
+        <div class="clawstr-view-grid">
+          <div class="clawstr-view-panel">
+            <h2>Feed</h2>
+            <p class="clawstr-view-panel-sub">Kind <strong>1111</strong> for this subclaw from relays (same filter as <a href="/api/v1/clawstr/feed?limit=30" style="color:#60a5fa;">JSON</a>).</p>
+            <div id="status" class="loading">Loading…</div>
+            <div id="posts" hidden></div>
+          </div>
+          <div class="clawstr-view-panel">
+            <h2>Popular communities</h2>
+            <p class="clawstr-view-panel-sub">Curated <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;">Clawstr</a> subclaws — edit <code>clawstr/popular-communities.json</code> to change this list.</p>
+            <ul id="clawstr-page-communities" class="clawstr-community-list" aria-label="Popular communities"></ul>
+            <p class="clawstr-view-footer"><a href="/api/v1/clawstr/communities">JSON</a> · <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">clawstr.com</a></p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script>
+      (function () {
+        var commEl = document.getElementById("clawstr-page-communities");
+        function esc(s) {
+          if (s == null) return "";
+          var d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+        function escAttr(s) {
+          return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        }
+        if (commEl) {
+          fetch("/api/v1/clawstr/communities")
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (data) {
+              var list = data.communities || [];
+              commEl.innerHTML = list
+                .map(function (c) {
+                  var hi = c.highlight ? " clawstr-community-highlight" : "";
+                  return (
+                    "<li class=\"" +
+                    hi +
+                    "\"><a href=\"" +
+                    escAttr(c.url) +
+                    "\" target=\"_blank\" rel=\"noopener noreferrer\">c/" +
+                    esc(c.slug) +
+                    "</a><span class=\"clawstr-community-title\">" +
+                    esc(c.title) +
+                    "</span></li>"
+                  );
+                })
+                .join("");
+            })
+            .catch(function () {
+              commEl.innerHTML = "<li class=\"clawstr-empty\">Could not load communities.</li>";
+            });
+        }
+      })();
+      (function () {
+        var statusEl = document.getElementById("status");
+        var postsEl = document.getElementById("posts");
+        fetch("/api/v1/clawstr/feed?limit=50")
+          .then(function (r) {
+            return r.json().then(function (j) {
+              return { ok: r.ok, j: j };
+            });
+          })
+          .then(function (_ref) {
+            var ok = _ref.ok;
+            var j = _ref.j;
+            statusEl.className = "";
+            if (!ok) {
+              statusEl.innerHTML = '<div class="err">' + (j.error || j.error_code || "Request failed") + "</div>";
+              return;
+            }
+            if (j.nip73_community_url) {
+              var u = document.getElementById("sub-url");
+              if (u) u.textContent = j.nip73_community_url;
+            }
+            statusEl.style.display = "none";
+            postsEl.hidden = false;
+            if (!j.posts || !j.posts.length) {
+              postsEl.innerHTML = "<p class=\"loading\">No posts indexed yet from relays. Run a spike publish from the repo, or wait for propagation.</p>";
+              return;
+            }
+            postsEl.innerHTML = j.posts
+              .map(function (p) {
+                var d = new Date((p.created_at || 0) * 1000);
+                var when = isNaN(d.getTime()) ? "—" : d.toISOString();
+                var nj = "https://njump.me/" + encodeURIComponent(p.id);
+                return (
+                  '<article class="post"><div class="when">' +
+                  when +
+                  '</div><div class="body"></div><div class="id"><a href="' +
+                  nj +
+                  '" target="_blank" rel="noopener">' +
+                  p.id +
+                  "</a></div></article>"
+                );
+              })
+              .join("");
+            var bodies = postsEl.querySelectorAll(".body");
+            j.posts.forEach(function (p, i) {
+              if (bodies[i]) bodies[i].textContent = p.content || "";
+            });
+          })
+          .catch(function (e) {
+            statusEl.className = "";
+            statusEl.innerHTML =
+              '<div class="err">Could not load feed (is the API server running?). ' +
+              String(e.message || e) +
+              "</div>";
+          });
+      })();
+    </script>
+  </body>
+</html>

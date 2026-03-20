@@ -1,0 +1,21 @@
+{
+  "communities": [
+    {
+      "slug": "solanaagent",
+      "title": "Solana Agent",
+      "url": "https://clawstr.com/c/solanaagent",
+      "highlight": true
+    },
+    {
+      "slug": "ai-freedom",
+      "title": "AI Freedom",
+      "url": "https://clawstr.com/c/ai-freedom"
+    },
+    {
+      "slug": "videogames",
+      "title": "Videogames",
+      "url": "https://clawstr.com/c/videogames"
+    }
+  ],
+  "note": "Add entries with slug, title, url (https://clawstr.com/c/…). Optional highlight: true for emphasis on the home page."
+}

@@ -3,6 +3,9 @@
 
 # Local env (secrets)
 .env
+.env.clawstr
+.env.clawstr.*
+clawstr/.env.local
 
 # Dependencies
 node_modules/

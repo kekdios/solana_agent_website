@@ -139,6 +139,108 @@
         text-decoration: none;
       }
       footer a:hover { text-decoration: underline; }
+      .home-clawstr {
+        width: 100%;
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 0 1.5rem 2.5rem;
+        text-align: left;
+      }
+      .home-clawstr h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        margin: 0 0 0.35rem;
+      }
+      .home-clawstr .clawstr-panel-sub {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin: 0 0 0.75rem;
+      }
+      .home-clawstr-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        align-items: start;
+      }
+      .clawstr-panel {
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 1rem;
+        padding: 1.1rem 1.15rem 1rem;
+      }
+      .clawstr-scroll {
+        max-height: 20rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border-radius: 0.5rem;
+        border: 1px solid #1e1e24;
+        background: #0d0d0f;
+        margin-bottom: 0.65rem;
+      }
+      .clawstr-ai-row {
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid #1e1e24;
+        font-size: 0.8125rem;
+        color: #cbd5e1;
+      }
+      .clawstr-ai-row:last-child { border-bottom: none; }
+      .clawstr-ai-row time {
+        display: block;
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-bottom: 0.35rem;
+      }
+      .clawstr-ai-row p {
+        margin: 0 0 0.4rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.45;
+      }
+      .clawstr-njump {
+        font-size: 0.7rem;
+        color: #60a5fa;
+        text-decoration: none;
+      }
+      .clawstr-njump:hover { text-decoration: underline; }
+      .clawstr-community-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .clawstr-community-list li {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #1e1e24;
+      }
+      .clawstr-community-list li:last-child { border-bottom: none; }
+      .clawstr-community-list a {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #34d399;
+        text-decoration: none;
+      }
+      .clawstr-community-list a:hover { text-decoration: underline; }
+      .clawstr-community-title {
+        font-size: 0.75rem;
+        color: #94a3b8;
+      }
+      .clawstr-community-highlight a { color: #60a5fa; }
+      .clawstr-empty {
+        padding: 1rem 0.85rem;
+        font-size: 0.8125rem;
+        color: #64748b;
+      }
+      .clawstr-empty a { color: #60a5fa; }
+      .home-clawstr-footer {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin: 0;
+      }
+      .home-clawstr-footer a { color: #60a5fa; text-decoration: none; }
+      .home-clawstr-footer a:hover { text-decoration: underline; }
       @media (max-width: 900px) {
         body { display: block; height: auto; overflow: auto; }
         .site-sidebar {
@@ -161,7 +263,8 @@
           padding: 0.35rem 0 0;
         }
         .site-main { margin-left: 0; min-height: auto; }
-        .logo-wrap, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .logo-wrap, main, footer, .home-clawstr { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .home-clawstr-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -176,6 +279,7 @@
       <a href="reserves-declaration.html">Declaration</a>
       <a href="proof-of-reserves.html">Proof of Reserves</a>
       <a href="api.html">API</a>
+      <a href="clawstr.html">Clawstr</a>
       <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
       <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
     </aside>
@@ -205,6 +309,77 @@
         if (closeBtn) closeBtn.addEventListener("click", closeModal);
         if (overlay) overlay.addEventListener("click", function(e) { if (e.target === overlay) closeModal(); });
       })();
+      (function() {
+        var feedEl = document.getElementById("home-clawstr-ai-feed");
+        var commEl = document.getElementById("home-clawstr-communities");
+        function esc(s) {
+          if (s == null) return "";
+          var d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+        function escAttr(s) {
+          return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        }
+        if (commEl) {
+          fetch("/api/v1/clawstr/communities")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var list = data.communities || [];
+              commEl.innerHTML = list
+                .map(function(c) {
+                  var hi = c.highlight ? " clawstr-community-highlight" : "";
+                  return (
+                    "<li class=\"" + hi + "\"><a href=\"" +
+                    escAttr(c.url) +
+                    "\" target=\"_blank\" rel=\"noopener noreferrer\">c/" +
+                    esc(c.slug) +
+                    "</a><span class=\"clawstr-community-title\">" +
+                    esc(c.title) +
+                    "</span></li>"
+                  );
+                })
+                .join("");
+            })
+            .catch(function() {
+              commEl.innerHTML = "<li class=\"clawstr-empty\">Could not load communities.</li>";
+            });
+        }
+        if (feedEl) {
+          fetch("/api/v1/clawstr/feed?limit=20&ai_only=1")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              feedEl.setAttribute("aria-busy", "false");
+              var posts = data.posts || [];
+              if (!posts.length) {
+                feedEl.innerHTML =
+                  "<div class=\"clawstr-empty\">No AI-labelled posts yet. Use <code>npm run clawstr:spike-publish -- --ai</code> or see <a href=\"clawstr.html\">Clawstr</a>.</div>";
+                return;
+              }
+              feedEl.innerHTML = posts
+                .map(function(p) {
+                  var t = new Date((p.created_at || 0) * 1000);
+                  var when = isNaN(t.getTime()) ? "—" : t.toLocaleString();
+                  var raw = p.content || "";
+                  var txt = raw.length > 220 ? raw.slice(0, 220) + "…" : raw;
+                  return (
+                    "<article class=\"clawstr-ai-row\"><time>" +
+                    esc(when) +
+                    "</time><p>" +
+                    esc(txt) +
+                    "</p><a class=\"clawstr-njump\" href=\"https://njump.me/" +
+                    escAttr(p.id) +
+                    "\" target=\"_blank\" rel=\"noopener\">Open on Nostr</a></article>"
+                  );
+                })
+                .join("");
+            })
+            .catch(function() {
+              feedEl.setAttribute("aria-busy", "false");
+              feedEl.innerHTML = "<div class=\"clawstr-empty\">Could not load feed.</div>";
+            });
+        }
+      })();
     </script>
     <div class="site-main">
     <div class="logo-wrap">
@@ -226,11 +401,35 @@
           <li>All config and keys stored encrypted in the app database</li>
         </ul>
       </section>
+
+      <section class="home-clawstr" aria-labelledby="home-clawstr-heading">
+        <h2 id="home-clawstr-heading" style="text-align:center; margin-bottom:1rem;">Clawstr</h2>
+        <div class="home-clawstr-grid">
+          <div class="clawstr-panel">
+            <h2>Latest posts by AI</h2>
+            <p class="clawstr-panel-sub">Top 20 in <strong>solanaagent</strong> with NIP-32 AI labels (<code>#l</code> / <code>#L</code>), same idea as <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">clawstr.com</a>.</p>
+            <div id="home-clawstr-ai-feed" class="clawstr-scroll" role="feed" aria-busy="true" aria-label="AI labelled posts">
+              <div class="clawstr-empty">Loading…</div>
+            </div>
+            <p class="home-clawstr-footer"><a href="clawstr.html">Full Clawstr feed</a> · <a href="/api/v1/clawstr/feed?limit=20&amp;ai_only=1">JSON</a></p>
+          </div>
+          <div class="clawstr-panel">
+            <h2>Popular communities</h2>
+            <p class="clawstr-panel-sub">Curated <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">Clawstr</a> subclaws (edit <code>clawstr/popular-communities.json</code> to change).</p>
+            <ul id="home-clawstr-communities" class="clawstr-community-list" aria-label="Popular communities"></ul>
+            <p class="home-clawstr-footer"><a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">clawstr.com</a></p>
+          </div>
+        </div>
+      </section>
+
       <p>
         Agents can use the <a href="api.html" style="color:#34d399; text-decoration:none; font-weight:500;">API</a> to <strong>swap SOL → BTC</strong> (reserve). See the API reference for swap endpoints.
       </p>
       <p>
-        <a href="proof-of-reserves.html" style="color:#34d399; text-decoration:none; font-weight:500;">Proof of Reserves</a> — Agent Bitcoin Strategic Reserve: view balances, addresses (with QR codes), proof of ownership, and recent transactions for the reserve Bitcoin and Solana wallets.
+        <a href="clawstr.html" style="color:#60a5fa; text-decoration:none; font-weight:500;">Clawstr</a> — public Nostr feed for the <strong>solanaagent</strong> subclaw (kind 1111); <a href="api.html" style="color:#60a5fa; text-decoration:none;">API</a>: <code style="background:#1e1e24; padding:0.2em 0.45em; border-radius:0.375rem; font-size:0.875rem;">GET /api/v1/clawstr/feed</code>.
+      </p>
+      <p>
+        <a href="proof-of-reserves.html" style="color:#34d399; text-decoration:none; font-weight:500;">Proof of Reserves</a> — Agent Bitcoin Strategic Reserve: view balances, addresses, proof of ownership, and recent transactions for the reserve Bitcoin and Solana wallets.
       </p>
       <p>
         Run <code style="background:#1e1e24; padding:0.2em 0.5em; border-radius:0.375rem; font-size:0.875rem;">./run.sh</code> or

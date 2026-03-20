@@ -9,6 +9,8 @@ const bs58 = require("bs58");
 const bitcoin = require("bitcoinjs-lib");
 const bitcoinMessage = require("bitcoinjs-message");
 const nacl = require("tweetnacl");
+const { receiveStableConfirmAndReward } = require("./lib/asry/receive-confirm-and-reward.cjs");
+const { tryHandleClawstr } = require("./clawstr/mount.cjs");
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
@@ -32,6 +34,7 @@ const LIFI_TO_CHAIN = "20000000000001";
 const SOL_FEE_RESERVE_LAMPORTS = 10000;
 /** Minimum SOL amount for LI.FI SOL→BTC (conservative; quote may allow slightly less). */
 const LIFI_MIN_SOL = 0.001;
+const CLAIMED_DEPOSIT_SIGS = new Set();
 
 
 function getBtcKey() {
@@ -324,6 +327,17 @@ const server = http.createServer(async (req, res) => {
     } else {
       res.writeHead(404);
       res.end(JSON.stringify({ error_code: "NOT_FOUND", error: "OpenAPI spec not available" }));
+    }
+    return;
+  }
+
+  try {
+    if (await tryHandleClawstr(req, res, path, url)) return;
+  } catch (e) {
+    console.error("[clawstr]", e);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error_code: "CLAWSTR_ERROR", error: String(e && e.message ? e.message : e) }));
     }
     return;
   }
@@ -694,6 +708,60 @@ const server = http.createServer(async (req, res) => {
   }
 
   // (Token creation, invoices, and listings APIs removed.)
+
+  // ASRY claim from confirmed stable deposit (sender inferred from chain data)
+  if (path === "/api/asry/claim-from-deposit" && req.method === "POST") {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (_) {
+      sendError(res, 400, "INVALID_JSON", "Invalid JSON body", "send_valid_json");
+      return;
+    }
+    const asset = String(body.asset || "").trim().toUpperCase();
+    const depositTxSignature = String(body.depositTxSignature || "").trim();
+    if (asset !== "USDC" && asset !== "USDT") {
+      sendError(res, 400, "INVALID_ASSET", 'asset must be "USDC" or "USDT"', "set_asset_to_usdc_or_usdt");
+      return;
+    }
+    if (!depositTxSignature) {
+      sendError(res, 400, "MISSING_DEPOSIT_TX", "depositTxSignature is required", "provide_deposit_signature");
+      return;
+    }
+    if (CLAIMED_DEPOSIT_SIGS.has(depositTxSignature)) {
+      sendError(res, 409, "ALREADY_CLAIMED", "This deposit signature was already claimed", "use_new_deposit_signature");
+      return;
+    }
+    const solKey = getSolanaKeypair();
+    const treasuryAddress = (process.env.TREASURY_SOLANA_ADDRESS || "").trim() || (solKey ? solKey.publicKey.toBase58() : "");
+    if (!solKey || !treasuryAddress) {
+      sendError(res, 503, "SERVICE_CONFIG", "Solana signer/treasury not configured", null);
+      return;
+    }
+    try {
+      const out = await receiveStableConfirmAndReward({
+        asset,
+        depositTxSignature,
+        treasuryAddress,
+        signerKeypair: solKey,
+        amount: body.amount,
+        amountAtomic: body.amountAtomic,
+        rewardUsd: body.rewardUsd,
+        skipReward: !!body.skipReward,
+      });
+      if (out?.reward?.signature) CLAIMED_DEPOSIT_SIGS.add(depositTxSignature);
+      res.writeHead(200);
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      if (e && e.partialResult) {
+        res.writeHead(200);
+        res.end(JSON.stringify(e.partialResult));
+        return;
+      }
+      sendError(res, 500, e.code || "CLAIM_FAILED", e.message || "Claim failed", null);
+    }
+    return;
+  }
 
   if (path === "/api/explorer/treasury" && req.method === "GET") {
     res.writeHead(200);

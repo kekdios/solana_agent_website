@@ -4,15 +4,14 @@
 
 - **`getAsryPriceUsd()`** — fixed **$100 / ASRY** until you replace with pool/oracle logic.
 - **`receiveStableConfirmAndReward()`** — waits for **receive success or failure**:
-  - **USDT:** runs Jupiter swap, polls until tx **confirmed** (or fails → **no ASRY**).
-  - **USDC:** needs **`depositTxSignature`**; confirms tx + verifies USDC credit to treasury; then reward.
+  - **USDC/USDT:** requires **`depositTxSignature`**; confirms tx + verifies treasury credit + infers sender from chain data; USDT path then runs treasury USDT→USDC swap.
 - On success: sends sender **`ASRY_REWARD_USD` (default $0.50)** of ASRY: `0.5 / 100 = 0.005 ASRY` (9 decimals → `5000000` atomic).
 
 **ASRY mint:** Treasury ASRY token is [3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw](https://explorer.solana.com/address/3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw); used as default when `ASRY_MINT_ADDRESS` is not set. Optional env: `ASRY_DECIMALS=9`, `ASRY_REWARD_USD=0.5`. Treasury must hold enough ASRY.
 
 ```bash
-npm run treasury:receive-reward -- USDT 0.5 <sender_pubkey>
-npm run treasury:receive-reward -- USDC 0.5 <sender_pubkey> <deposit_tx_sig>
+npm run treasury:receive-reward -- USDT 0.5 ignored_sender <deposit_tx_sig>
+npm run treasury:receive-reward -- USDC 0.5 ignored_sender <deposit_tx_sig>
 ```
 
 ---

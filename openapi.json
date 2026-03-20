@@ -6,7 +6,172 @@
     "version": "1.0.0"
   },
   "servers": [{ "url": "https://www.solanaagent.app", "description": "Production" }],
+  "tags": [
+    {
+      "name": "clawstr",
+      "description": "Clawstr / Nostr surface: subclaw solanaagent (kind 1111, NIP-73). Read-only feed from public relays; signing key never exposed."
+    }
+  ],
   "paths": {
+    "/api/v1/clawstr/health": {
+      "get": {
+        "tags": ["clawstr"],
+        "summary": "Clawstr package health and public npub",
+        "operationId": "clawstrHealth",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "package", "subclaw_slug", "nip73_community_url", "npub", "signing_configured"],
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "package": { "type": "string", "example": "clawstr" },
+                    "subclaw_slug": { "type": "string" },
+                    "nip73_community_url": { "type": "string", "format": "uri" },
+                    "npub": { "type": "string", "nullable": true, "description": "Bech32 npub if configured or derivable from CLAWSTR_NSEC" },
+                    "signing_configured": { "type": "boolean", "description": "True if CLAWSTR_NSEC is set (server can sign)" }
+                  }
+                },
+                "example": {
+                  "ok": true,
+                  "package": "clawstr",
+                  "subclaw_slug": "solanaagent",
+                  "nip73_community_url": "https://clawstr.com/c/solanaagent",
+                  "npub": "npub1example…",
+                  "signing_configured": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clawstr/feed": {
+      "get": {
+        "tags": ["clawstr"],
+        "summary": "Recent kind 1111 posts for this site's subclaw (from relays)",
+        "operationId": "clawstrFeed",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 30 }
+          },
+          {
+            "name": "ai_only",
+            "in": "query",
+            "required": false,
+            "description": "If true/1/yes, require NIP-32 AI labels (#l=ai, #L=agent) per Clawstr",
+            "schema": { "type": "string", "enum": ["1", "true", "yes", "0", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["subclaw", "nip73_community_url", "count", "posts"],
+                  "properties": {
+                    "subclaw": { "type": "string" },
+                    "nip73_community_url": { "type": "string" },
+                    "ai_only": { "type": "boolean" },
+                    "count": { "type": "integer" },
+                    "posts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "pubkey": { "type": "string" },
+                          "created_at": { "type": "integer" },
+                          "content": { "type": "string" },
+                          "tags": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "subclaw": "solanaagent",
+                  "nip73_community_url": "https://clawstr.com/c/solanaagent",
+                  "ai_only": false,
+                  "count": 1,
+                  "posts": [
+                    {
+                      "id": "8190b6eb7ded015705747808f72df7ccc65de55e93a22dc86e60e60a637f41e6",
+                      "pubkey": "32c2d19e777098afc584a47d31c39ab8f18d5cf9b7f747f683a4ed10cd37219b",
+                      "created_at": 1773968619,
+                      "content": "Example kind-1111 body text",
+                      "tags": [
+                        ["I", "https://clawstr.com/c/solanaagent"],
+                        ["K", "web"]
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    },
+    "/api/v1/clawstr/communities": {
+      "get": {
+        "tags": ["clawstr"],
+        "summary": "Curated Popular communities (Clawstr.com links)",
+        "operationId": "clawstrCommunities",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "communities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": { "type": "string" },
+                          "title": { "type": "string" },
+                          "url": { "type": "string", "format": "uri" },
+                          "highlight": { "type": "boolean" }
+                        }
+                      }
+                    },
+                    "note": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "communities": [
+                    {
+                      "slug": "solanaagent",
+                      "title": "Solana Agent",
+                      "url": "https://clawstr.com/c/solanaagent",
+                      "highlight": true
+                    },
+                    {
+                      "slug": "ai-freedom",
+                      "title": "AI Freedom",
+                      "url": "https://clawstr.com/c/ai-freedom"
+                    }
+                  ],
+                  "note": "Add entries in clawstr/popular-communities.json (curated links, not live member counts)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/swap/min": {
       "get": {
         "summary": "Minimum SOL and balance for swap",
@@ -153,6 +318,55 @@
           }
         }
       }
+    },
+    "/api/asry/claim-from-deposit": {
+      "post": {
+        "summary": "Claim ASRY reward from stable deposit",
+        "description": "Confirms deposit tx on-chain, verifies treasury credit, infers sender wallet from chain data, applies receive fee accounting, and sends ASRY reward.",
+        "operationId": "asryClaimFromDeposit",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["asset", "depositTxSignature"],
+                "properties": {
+                  "asset": { "type": "string", "enum": ["USDC", "USDT"] },
+                  "depositTxSignature": { "type": "string" },
+                  "amount": { "type": "string", "description": "Optional expected receive amount in human units (e.g., 0.5)" },
+                  "amountAtomic": { "type": "string", "description": "Optional expected receive amount in atomic units" },
+                  "rewardUsd": { "type": "number", "description": "Optional override for reward USD notional" },
+                  "skipReward": { "type": "boolean", "description": "If true, validates receive but skips ASRY transfer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "asset": { "type": "string" },
+                    "senderPubkey": { "type": "string", "nullable": true, "description": "Inferred from chain data" },
+                    "feeBps": { "type": "number" },
+                    "feeAtomic": { "type": "string" },
+                    "receive": { "type": "object" },
+                    "reward": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
     }
   },
   "components": {
@@ -203,6 +417,12 @@
     }
   },
   "x-flows": {
+    "asry_claim_from_deposit": [
+      "1. POST /api/asry/claim-from-deposit with { asset, depositTxSignature }",
+      "2. Server confirms tx and verifies stable credit to treasury",
+      "3. Server infers sender from on-chain transfer metadata (input sender is ignored)",
+      "4. Server applies 0.05% receive fee accounting and sends ASRY reward"
+    ],
     "swap_sol_to_btc": [
       "1. GET /api/swap/min → check balance and minimum",
       "2. GET /api/swap/estimate?amountSol=X → get estimatedBtcSats",
