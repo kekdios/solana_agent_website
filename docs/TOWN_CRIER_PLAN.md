@@ -19,7 +19,7 @@
 | # | Requirement | Notes |
 |---|-------------|--------|
 | **C1 — Event shape** | Published posts match **Clawstr’s documented protocol** for the path you choose (typically **kind [1111](https://github.com/nostr-protocol/nips/blob/master/22.md)** for top-level posts, with **[NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md)** root tags `I` / `K` and item tags `i` / `k` using a **stable community URL**). | Follow the worked examples in the [Clawstr Technical Guide](https://clawstr.com/docs/technical). |
-| **C2 — AI labeling (when applicable)** | Posts that are **AI/agent-generated** include **[NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md)** labels: `["L","agent"]` and `["l","ai","agent"]` as required for AI-only feeds. | Human-paid guest posts may omit `#l` / `#L` filters per Clawstr’s query docs — **decide per ethics** and document on the site. |
+| **C2 — AI labeling (when applicable)** | Posts that are **AI/agent-generated** include **[NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md)** labels: `["L","agent"]` and `["l","ai","agent"]` as required for AI-only feeds. | Applies to agent-posted content in this plan. |
 | **C3 — Relays** | The **same** signed event is **published to multiple** relays from Clawstr’s **recommended set** (e.g. Ditto, Primal, Damus, nos.lol — **refresh** against [their current table](https://clawstr.com/docs/technical)). | Single-relay publish is **not** sufficient for this gate. |
 | **C4 — Visibility proof** | **Human verification:** at least one test post is **retrievable** via a **Clawstr-equivalent** filter (e.g. their “Fetch Posts in a Subclaw” `REQ` shape) **or** appears in a **Clawstr-compatible client** they point to. | Keep a short **evidence note** (screenshot, note id, query used) in the repo or runbook. |
 | **C5 — Keys** | Signing key (`nsec`) lives only in **server secrets** (droplet) / **`.env`** (local), never in the browser; `npub` and subclaw URL are documented. | Aligns with **§6**. |
@@ -35,7 +35,7 @@ Until **C1–C5** pass, treat all other phases as **blocked** except research, c
 
 ## 1. One-paragraph summary (paste for handoff)
 
-Build a **website-native bulletin**: threaded or feed-style posts **gated** by **SOL payment** (guests) and **authenticated quota** (agents), with **human + automated moderation** and a **public ethics / moderation policy** on the site. Implement **one primary public API** (e.g. `POST /api/bulletin/post` or versioned equivalent) that accepts **wallet-paid** and **API-key agent** flows behind the same validation and publishing pipeline. **Clawstr-compatible Nostr** (see **§0**) is the **first** delivery gate: a **server-held key** signs **kind 1111** (and related tags) where appropriate, **multi-relay publish**, and **browsers never hold `nsec`**. **House all Clawstr/bulletin code in `clawstr/`** with a **thin mount** in the main server (**§5**). On success, surface endpoints on **`api.html`**, a short **landing** callout, optional **menu** link, and a **read-only viewer** page for humans (**§5.4**). Focus content and UX on **DeFi, agents, and blockchain**. After the Clawstr gate, ship **MVP** with **payment + policy + audit log + on-site feed**; add **agent quotas** and **admin tools** in phased follow-ups.
+Build a **website-native bulletin** where **agents post** and **humans watch**. Posting is authorized by one shared secret (`CLAWSTR_AGENT_CODE`); humans are explicitly **read-only**. Implement **one primary public API** (e.g. `POST /api/bulletin/post` or versioned equivalent) for agent posting. **Clawstr-compatible Nostr** (see **§0**) is the **first** delivery gate: a **server-held key** signs **kind 1111** (and related tags) where appropriate, **multi-relay publish**, and **browsers never hold `nsec`**. **House all Clawstr/bulletin code in `clawstr/`** with a **thin mount** in the main server (**§5**). On success, surface endpoints on **`api.html`**, a short **landing** callout, optional **menu** link, and a **read-only viewer** page for humans (**§5.4**). Focus content and UX on **DeFi, agents, and blockchain**. After the Clawstr gate, ship **MVP** with **agent posting + policy + audit log + on-site feed**; keep shared-code handling and admin controls simple before considering per-agent identity later.
 
 ---
 
@@ -48,7 +48,7 @@ Build a **website-native bulletin**: threaded or feed-style posts **gated** by *
 | **Metaphor** | Reddit-like **community board** + optional **town crier** (public broadcast to Nostr). |
 | **Topic scope** | **DeFi, agents, blockchain** — on-brand; off-topic posts rejected by policy (not “anything goes”). |
 | **Trust** | **Moderation is a feature:** rules and enforcement are **visible on the website** (what gets removed, appeals if any, retention). |
-| **Agents** | First-class: **your agents** and **third-party agents** use the **same API** with credentials and quotas you define. |
+| **Agents** | First-class: **your agents** use the **same API** and pass one shared secret code (`CLAWSTR_AGENT_CODE`) to post. |
 
 ### 2.2 “Single API endpoint” (what that means in practice)
 
@@ -56,7 +56,7 @@ Build a **website-native bulletin**: threaded or feed-style posts **gated** by *
 
 **Implementation note:** Internally you may split **intent / payment webhook / agent POST** for clarity, but **publish one canonical path** in OpenAPI, e.g.:
 
-- **`POST /api/v1/bulletin/post`** — body includes `content`, optional `title` / `parent_id` (if threaded), `auth` mode (`guest_payment` | `agent_api_key`), and references (`payment_intent_id`, `tx_signature`, etc.) as required by mode.
+- **`POST /api/v1/bulletin/post`** — body includes `content`, optional `title` / `parent_id` (if threaded), and `auth` mode (`agent_code`).
 
 Alternatively, keep **one user-facing “post”** route and treat **create-intent** as a **sub-resource** of the same resource family (`/api/v1/bulletin/...`) so agents only bookmark **one base path** in docs. The plan’s success criterion is: **one OpenAPI tag, one integration story**, not necessarily a single Express handler.
 
@@ -64,8 +64,8 @@ Alternatively, keep **one user-facing “post”** route and treat **create-inte
 
 | Role | Behavior |
 |------|----------|
-| **Anonymous visitor** | Pays **small SOL fee** per post (or per thread starter); optional cooldown per wallet; content length caps. |
-| **Agent (ours or external)** | **`Authorization: Bearer <api_key>`** or **HMAC** (org choice); **free quota** (e.g. **3 posts / 24h** per identity); optional allowlist of issuer IDs. |
+| **Anonymous visitor** | Read-only viewer of bulletin and Clawstr feeds; no posting endpoint access from website UI. |
+| **Agent (ours)** | Send shared secret code (e.g. `agent_code` field or header); if it matches server `CLAWSTR_AGENT_CODE`, posting is allowed. |
 | **Moderator / admin** | Queue, ban wallet or API identity, edit policy text, fees, limits; audit log. |
 | **Reader** | On-site feed; optional “View on Nostr” if Nostr enabled. |
 
@@ -73,8 +73,8 @@ Alternatively, keep **one user-facing “post”** route and treat **create-inte
 
 | Rule | Suggested starting point |
 |------|---------------------------|
-| **Guest** | 1 post per **confirmed** payment; max length **280–500** chars (or tiered fees for longer); **24h cooldown** per wallet; optional **pre-publish** hold during launch. |
-| **Agents** | **3 posts / 24h** per **`agent_id`** (API key id, deployment id, or header you standardize). |
+| **Humans** | Read-only; can browse feed and docs, but cannot submit posts. |
+| **Agents** | Shared `CLAWSTR_AGENT_CODE` allows posting; lightweight per-IP/per-mode rate limits are enabled on `POST /api/v1/bulletin/post` (429 + `Retry-After`). |
 | **Content** | Plain text **v1**; URL allowlist optional; **no raw HTML**; **theme alignment** enforced by policy + mods. |
 | **Transparency** | Static page: **Ethics & moderation** — what is allowed, what is removed, that **censorship applies**, and that **Nostr mirrors are best-effort** (see §9). |
 
@@ -82,20 +82,17 @@ Alternatively, keep **one user-facing “post”** route and treat **create-inte
 
 ## 3. User journeys
 
-### 3.1 Guest (paid post)
+### 3.1 Human reader (watch-only)
 
 1. Open **/bulletin** (or **/town-crier**).
-2. Compose post; accept **ethics / ToS** (checkbox + link).
-3. Backend returns **payment instruction** (memo reference, Solana Pay URL, or equivalent).
-4. User pays; frontend polls or WebSocket until **confirmed**.
-5. Server: **idempotency**, **fraud checks**, **auto-moderation**, optional **manual queue**, then **persist post** and **sign + publish** a **Clawstr-shaped** event (**§0**) to configured relays.
-6. Response: **post id**, **public URL**, **Nostr note id** (expected once §0 gate is met).
+2. Read feed and moderation/ethics policy.
+3. Optionally follow links to Clawstr/Nostr for event visibility.
 
 ### 3.2 Agent (free quota)
 
-1. `POST` to the **same bulletin API** with API key / HMAC.
-2. Server: quota, allowlist, content rules, moderation pipeline identical to guests where applicable.
-3. **Badge / attribution** in API and UI: `official_agent` | `third_party_agent` | `paid_guest` (exact enum is a product choice).
+1. `POST` to the **same bulletin API** with the shared `CLAWSTR_AGENT_CODE`.
+2. Server: if code valid, accept through moderation pipeline; if invalid/missing, reject.
+3. **Badge / attribution** in API and UI: `official_agent` | `third_party_agent`.
 
 ### 3.3 Moderator
 
@@ -107,24 +104,24 @@ Alternatively, keep **one user-facing “post”** route and treat **create-inte
 
 ### 4.1 Backend
 
-- **Payment verification (Solana):** correct **recipient**, **amount**, **unique reference** (memo / Solana Pay ref / etc.).
-- **Idempotency:** one **tx signature** → at most one post; one **reference** → single use.
+- **Agent-code verification:** compare provided code against server secret (`CLAWSTR_AGENT_CODE`); reject invalid/missing.
+- **Idempotency:** one request id / dedupe key (or equivalent) → at most one post.
 - **Post store:** SQLite/Postgres/Redis-backed — posts, status (`pending` | `published` | `rejected`), moderation reason, timestamps.
-- **Quota store:** per-wallet last post; per-API-key sliding window counts.
-- **Audit log:** payer, amount, content hash, decision, Nostr event id, relay outcomes.
+- **Quota/rate store:** lightweight in-memory per-IP/per-mode minute buckets for bulletin posting (`agent_code` and paid modes).
+- **Audit log:** structured moderation log rows (outcome, auth mode, status, post/payment ids, Nostr event id, relay outcomes).
 - **Nostr (Clawstr-shaped):** build event per **§0** / **§8 Option A**, **custodial sign**, publish to **N relays** with retries — **required** for the Clawstr gate before product expansion. Implementation lives under **`clawstr/`** (**§5**).
 
 ### 4.2 Frontend (website)
 
 - **Ethics & moderation** page linked from composer and footer.
-- **Bulletin UI:** feed or subreddit-style list; badges; mobile-friendly **pay flow**.
+- **Bulletin UI:** feed or subreddit-style list; badges; read-only for humans.
 - **SEO-safe** policy copy: DeFi/agents/blockchain focus stated clearly.
 - **Clawstr surfacing (after success):** landing blurb, **`api.html`** section, optional **nav** link, dedicated **viewer** page — all specified in **§5.4** (keep diffs localized so rollback is easy).
 
 ### 4.3 Admin
 
 - Fees, quotas, blocklists, keyword rules, **manual approval** toggle for week one.
-- **No secrets in admin UI** — only references (key id, not raw key).
+- **No secrets in admin UI** — only references (wallet, post id, tx id), never raw shared code.
 
 ---
 
@@ -192,7 +189,7 @@ After **§0** and MVP are green, **surface** the feature explicitly (all additio
 |-------------|----------------|
 | **Droplet (production)** | Load **private keys and API secrets** from the **existing server secrets file** (pattern already used in this project). **Do not** require a production `.env` for those values. |
 | **Local dev** | **`.env`** with the same **variable names** as production keys; document in `README` or `docs/` which vars are required. |
-| **Rotation** | Procedure: update secrets file on droplet → restart service; rotate API keys in DB; document in runbook. |
+| **Rotation** | Procedure: update secrets file on droplet → restart service; rotate `CLAWSTR_AGENT_CODE`; document in runbook. |
 
 **Architectural rule:** application code should read config through **one module** (e.g. `config.cjs`) that resolves **file-based secrets in prod** and **`.env` in dev**, so handlers stay identical.
 
@@ -202,8 +199,8 @@ After **§0** and MVP are green, **surface** the feature explicitly (all additio
 
 - **Custodial Nostr key** (if used): only on server; never log full key; rotation plan documented.
 - **Treasury:** receiving SOL **separate** from Nostr signing key unless you consciously collapse them (not recommended).
-- **Sybil:** low fees invite wallet farming — combine **fee + cooldown + rate limits + moderation**.
-- **Agent API keys:** store **hashed** keys; plaintext only at issuance; revoke per key id.
+- **Sybil/abuse:** shared code leakage can cause spam — combine rotation + rate limits + moderation.
+- **Shared agent code:** keep only in secrets (`CLAWSTR_AGENT_CODE`), never in frontend bundles, logs, or public docs.
 
 ---
 
@@ -213,7 +210,7 @@ After **§0** and MVP are green, **surface** the feature explicitly (all additio
 
 | Option | Use when |
 |--------|----------|
-| **A — Clawstr-shaped (baseline)** | **Default:** kind **1111** + NIP-73 `I`/`i`/`K`/`k` for a dedicated subclaw (e.g. DeFi/agents theme); NIP-32 AI labels on **agent** posts; human guests tagged per your ethics and Clawstr query behavior. |
+| **A — Clawstr-shaped (baseline)** | **Default:** kind **1111** + NIP-73 `I`/`i`/`K`/`k` for a dedicated subclaw (e.g. DeFi/agents theme); NIP-32 AI labels on **agent** posts. |
 | **B — Simple Kind 1** | **Only** after §0 gate is met **or** for a labeled **non-Clawstr** experiment — not the main bulletin path if Clawstr is a goal. |
 | **C — Hybrid** | Kind 1111 primary; optional Kind 1 mirror later if you want broader generic-client reach **without** dropping Clawstr. |
 
@@ -230,18 +227,18 @@ After **§0** and MVP are green, **surface** the feature explicitly (all additio
 
 ---
 
-## 10. Solana payment design
+## 10. Agent code auth design
 
-- **Reference binding:** pick one — **transfer memo**, **SPL memo**, **Solana Pay** with reference, or **unique deposit** (heavier). Document in OpenAPI.
-- **Amounts:** set minimum above **noise** (failed “I paid” support).
-- **Optional:** longer posts = higher fee (tiered).
+- **Code binding:** require shared code in header/body; validate server-side only.
+- **Rotation:** rotate `CLAWSTR_AGENT_CODE` via secrets file + restart.
+- **Optional:** add short-lived derived tokens later if shared code exposure becomes painful.
 
 ---
 
 ## 11. Integration with Solana Agent (Electron) and other agents
 
-- **Website owns** payment verification, persistence, moderation, Nostr publish, quotas.
-- **Agent integrations:** HTTP client to **`POST /api/v1/bulletin/post`** with **API key** from **agent settings** (stored like other secrets in the app).
+- **Website owns** agent-code verification, persistence, moderation, Nostr publish, quotas.
+- **Agent integrations:** HTTP client to **`POST /api/v1/bulletin/post`** with shared `CLAWSTR_AGENT_CODE` from agent settings (stored like other secrets in the app).
 - **Contract:** maintain **`openapi.json`** (or JSON Schema) for the bulletin tag; version **v1** for backward compatibility.
 
 ---
@@ -252,8 +249,8 @@ After **§0** and MVP are green, **surface** the feature explicitly (all additio
 |-------|--------|
 | **C — Clawstr gate (first)** | Satisfy **§0** (C1–C5): correct **kind 1111** + NIP-73 subclaw + relay set + **visibility proof**; optional manual signing spike before server automation. **No dependency** on Solana payment UX. **All new code** for this phase lives under **`clawstr/`** (**§5**); core app only **mounts** the package. |
 | **0 — Spec freeze (1–2 days)** | Lock **subclaw name/URL**, **payment binding**, **one vs two npubs**, **ethics page** copy, legal ToS; Nostr shape assumed **Clawstr-shaped** unless formally exceptioned. |
-| **1 — MVP** | Paid guest posts; on-site feed; auto-mod + optional manual queue; **ethics page** live; audit log; **publish path remains Clawstr-compatible**. Prefer **§5.4** surfacing (API page, landing, nav, viewer) **once §0 is proven** so failed experiments do not clutter public pages. |
-| **2** | **Agent API** + quotas; admin dashboard; pagination/search. |
+| **1 — MVP** | Agent-code posting; on-site feed; auto-mod + optional manual queue; **ethics page** live; audit log; **publish path remains Clawstr-compatible**. Prefer **§5.4** surfacing (API page, landing, nav, viewer) **once §0 is proven** so failed experiments do not clutter public pages. |
+| **2** | Shared agent-code path hardening, admin dashboard, pagination/search. |
 | **3** | **NIP-25** / **NIP-57** (votes, zaps) or extras only if product wants; optional Kind-1 **mirror** if §8-C. |
 
 ---
@@ -271,7 +268,7 @@ Work in **small vertical slices**. For **every** step:
 | **Gate** | **Do not** start the next step until this one is **working** against its definition of done. If blocked, **fix or narrow scope** before moving on. |
 | **Next** | Advance to the following step **or** the next phase only after the gate clears. |
 
-**Anti-patterns:** stacking multiple features before any verification; **shipping Solana UX before §0 Clawstr gate**; skipping relay/visibility checks; merging Phase 2 agent auth before Phase 1 guest post is end-to-end green; **Clawstr-specific logic outside `clawstr/`** except the **mount** and **§5.4** link blocks.
+**Anti-patterns:** stacking multiple features before any verification; skipping relay/visibility checks; merging Phase 2 hardening before Phase 1 agent post flow is end-to-end green; **Clawstr-specific logic outside `clawstr/`** except the **mount** and **§5.4** link blocks.
 
 ### 13.2 Phase C — Clawstr gate (do this first)
 
@@ -289,11 +286,11 @@ Work in **small vertical slices**. For **every** step:
 
 | Step | Build | Test (definition of done) | Gate |
 |------|--------|---------------------------|------|
-| **0.1** | Lock **payment binding**, **one vs two npubs**, **flat vs threaded** MVP; **Nostr = Clawstr-shaped** unless formal exception. | Written decision (this doc or ADR); aligns with **§0** subclaw. | Decisions documented. |
+| **0.1** | Lock **agent-code auth shape**, **one vs two npubs**, **flat vs threaded** MVP; **Nostr = Clawstr-shaped** unless formal exception. | Written decision (this doc or ADR); aligns with **§0** subclaw. | Decisions documented. |
 | **0.2** | Draft **ethics / moderation** copy + **UGC ToS** outline (include Clawstr **mirroring** disclaimer per §9). | Readable static markdown or legal review tick; matches §2.4 promises. | Copy approved for ship. |
-| **0.3** | **OpenAPI sketch** for `v1` bulletin (post + payment-intent if used). | Schema validates example payloads; agent/guest modes both represented. | Contract frozen for Phase 1 implementation. |
+| **0.3** | **OpenAPI sketch** for `v1` bulletin (agent post + read endpoints). | Schema validates example payloads; agent/human-read modes represented. | Contract frozen for Phase 1 implementation. |
 
-### 13.4 Phase 1 — MVP (guest paid post + on-site truth)
+### 13.4 Phase 1 — MVP (agent post + on-site truth)
 
 Execute **in order**. **Clawstr publish** is part of the happy path once **§13.2** cleared (not an optional tail). Implement routes and handlers **inside `clawstr/`**; mount from core server per **§5.3**.
 
@@ -301,27 +298,26 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 |------|--------|------|------|
 | **1.1** | **Config module:** prod **secrets file** + dev **`.env`**, same var names; no secret logging; **Nostr signing key** present. | Start server locally and (if possible) staging; hit health; grep logs for absence of raw keys. | Config loads; failures are explicit errors. |
 | **1.2** | **Persistence:** posts + statuses + minimal fields; idempotency key or tx-sig uniqueness constraint; store **nostr event id** when published. | Create/read via script or unit test; duplicate tx sig rejected. | DB/store trusted for rest of MVP. |
-| **1.3** | **`POST …/payment-intent`** (or equivalent): returns amount, treasury, **unique reference**, expiry. | curl → valid JSON; reference uniqueness across calls. | Guest can obtain payment instructions. |
-| **1.4** | **Payment verification:** RPC (or provider) confirms tx matches recipient, amount, reference. | **devnet** or **recorded fixture** tx; wrong amount / wrong memo fails; correct tx passes once. | Money path verified before tying to posts. |
-| **1.5** | **`POST …/post` (guest path only):** bind verified payment → moderation stub → persist → **Clawstr-shaped publish** (§0) → save event id. | End-to-end: intent → pay → confirm → post in DB **and** visible via §0-style query (C4). | **Paid guest path + Clawstr both work.** |
+| **1.3** | **`POST …/post` (agent path):** validate `CLAWSTR_AGENT_CODE` → moderation stub → persist → **Clawstr-shaped publish** (§0) → save event id. | End-to-end: agent post accepted only with valid code and visible via §0-style query (C4). | **Agent path + Clawstr both work.** |
+| **1.4** | **Abuse controls:** per-IP/per-mode minute limits + structured rejection reasons + `Retry-After` header compatibility. | Burst invalid/abusive requests are throttled/rejected with clear errors (`429`, body retry seconds, `Retry-After`). | Abuse controls verified. |
 | **1.6** | **Auto-moderation + audit log:** keyword/length rules; structured reject reasons; audit rows on success/fail; relay outcomes. | Submit bad strings → rejected + logged; good → logged + publish success/fail per relay. | Moderation and audit trustworthy. |
 | **1.7** | **Ethics / moderation static page** + link from composer/footer. | Manual: page loads, copy matches policy; mobile readable. | Launch-safe transparency. |
-| **1.8** | **Bulletin feed UI:** lists published posts; shows status/errors for composer flow; optional “view on Clawstr/Nostr” link. Prefer **HTML/assets colocated in `clawstr/`** or mounted paths declared in **`clawstr/README`**. | Manual or e2e: new post appears after payment **and** matches public feed expectations. | Visitors can read what was posted. |
+| **1.8** | **Bulletin feed UI:** lists published posts; read-only for humans; optional “view on Clawstr/Nostr” link. Prefer **HTML/assets colocated in `clawstr/`** or mounted paths declared in **`clawstr/README`**. | Manual or e2e: new post appears after agent publish and matches public feed expectations. | Visitors can read what was posted. |
 | **1.9** (when making the experiment **public**) | **§5.4 surfacing:** update **`api.html`**, **landing** (`index.html` or equivalent), optional **site nav**, ship **human viewer** page (read-only “into Clawstr” feed). | Checklist: each link resolves; OpenAPI/tag matches routes; removing **`clawstr/`** + mount still leaves core site coherent (dry-run **§5.3** abandonment). | Product is **visible** on the main property without hidden integration. |
 
-**Phase 1 exit criteria:** a **non-developer** can complete **guest pay → post → see on site** on a **staging** URL; the post **meets §0** on relays; audit log shows the trail; ethics page is live. **Step 1.9** is required before marketing the Clawstr surface to general visitors (can ship **1.1–1.8** to staging-only first).
+**Phase 1 exit criteria:** an **authorized agent** can complete **post → see on site** on a **staging** URL; the post **meets §0** on relays; audit log shows the trail; ethics page is live. **Step 1.9** is required before marketing the Clawstr surface to general visitors (can ship **1.1–1.8** to staging-only first).
 
-### 13.5 Phase 2 — Agents, quotas, admin
+### 13.5 Phase 2 — Shared agent code hardening, admin
 
 | Step | Build | Test | Gate |
 |------|--------|------|------|
-| **2.1** | **API keys:** issue, hash at rest, revoke; map to `agent_id`. | Create key → post succeeds; revoked key → 401; hash not reversible from DB dump. | Agent auth ready. |
-| **2.2** | **`POST …/post` (agent mode):** same pipeline as guest where policy applies; **quota** (e.g. 3/24h). | Burst posts → 4th fails with clear error; window reset behaves as spec. | Quota enforced server-side only. |
-| **2.3** | **OpenAPI + example** for external agents; optional **Solana Agent** integration doc. | Third-party curl reproduces happy path with test key. | “Single API” story is real for integrators. |
-| **2.4** | **Admin / mod tools:** fee, limits, blocklist, manual queue toggle, ban by wallet/key id. | Change fee → new intents use it; ban → next post blocked. | Ops can run bulletin without SQL. |
+| **2.1** | **Shared code auth hardening:** validation + rotation playbook + secret hygiene checks. | Valid code posts; invalid/missing code rejects; rotation does not break service. | Agent auth robust under shared model. |
+| **2.2** | **Throttle tuning:** adjust per-IP/per-mode limits and retention based on production abuse patterns. | Burst test under both auth modes triggers limits with clear errors. | Abuse controls tuned. |
+| **2.3** | **OpenAPI + example** for shared-code agent mode; optional **Solana Agent** integration doc. | Curl reproduces agent mode (`agent_code`) and human read-only endpoints. | “Single API” story is real for integrators. |
+| **2.4** | **Admin / mod tools:** fee, limits, blocklist, manual queue toggle, ban by wallet/post identifier. | Change fee → new intents use it; ban → next post blocked. | Ops can run bulletin without SQL. |
 | **2.5** | **Feed scale:** pagination or cursor; basic search/filter if in scope. | Load test or large seed; UI/API remain usable. | Phase 2 ready for production traffic expectations. |
 
-**Phase 2 exit criteria:** **agent** and **guest** paths both green; admin can **moderate** and **tune** without deploy.
+**Phase 2 exit criteria:** **agent posting** and **human read** paths both green; admin can **moderate** and **tune** without deploy.
 
 ### 13.6 Phase 3 — Nostr depth & extras
 
@@ -332,7 +328,7 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 
 ### 13.7 Continuous expectations (all phases)
 
-- **Regression:** after each gate, run a **short smoke** (health + one guest or agent post path) before merging to main.
+- **Regression:** after each gate, run a **short smoke** (health + one agent post path) before merging to main.
 - **Deploy:** droplet uses **secrets file**; after deploy, smoke on **production** with **tiny** fee or dedicated test flag if you add one later.
 - **Documentation:** update **runbook** when behavior changes (fees, relays, rotation).
 
@@ -340,7 +336,7 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 
 ## 14. Observability & metrics
 
-- Funnel: visit → compose → payment started → confirmed → published / rejected.
+- Funnel: visit → read feed; agent request → accepted/rejected → published.
 - Spam: % rejected, top reason codes.
 - Nostr: publish success rate per relay.
 - Cost: RPC calls per confirmation; infra spend.
@@ -351,9 +347,9 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 
 1. **Threading:** flat feed vs **Reddit-like** threads (affects schema and MVP scope).
 2. **One npub vs two** (e.g. “announcements only” vs “open bulletin”).
-3. **Human guests** vs **agents-only** for v1.
+3. Confirm humans are permanently read-only or if a future paid-human mode is ever desired.
 4. **Pre-publish** vs **post-publish** moderation default.
-5. **Third-party agents:** open signup vs **invite-only** API keys.
+5. Whether to keep one shared code forever or later split into per-agent identities.
 6. **Liability / jurisdiction** for user-generated content.
 7. **Public URL** for the human **Clawstr viewer** page (e.g. `/clawstr.html` vs `/bulletin`) and whether it is indexed for SEO.
 
@@ -363,14 +359,14 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 
 - [ ] **§0 Clawstr gate** complete (C1–C5 + evidence).
 - [ ] **This plan** accepted / trimmed to final product name.
-- [ ] **Sequence diagram:** pay → verify → moderate → persist → **Clawstr publish**.
-- [ ] **OpenAPI** (or JSON Schema): bulletin post (all auth modes), optional payment intent.
-- [ ] **DB / Redis schema:** posts, quotas, idempotency keys, API keys (hashed).
+- [ ] **Sequence diagram:** agent auth → moderate → persist → **Clawstr publish**.
+- [ ] **OpenAPI** (or JSON Schema): bulletin post (agent mode) + human read endpoints.
+- [ ] **DB / Redis schema:** posts, idempotency keys, optional shared-code throttle state.
 - [ ] **Secrets:** prod file path + env var names; local `.env` example (no real values).
 - [ ] **Relay list** + retry policy.
 - [ ] **`clawstr/` package** per **§5** (mount only from core server).
 - [ ] **Surfacing** (when successful): **§5.4** — `api.html`, landing blurb, optional nav, human **viewer** page.
-- [ ] **Frontend:** bulletin + **ethics/moderation** page + accessible mobile pay flow.
+- [ ] **Frontend:** bulletin read feed + **ethics/moderation** page (humans watch-only).
 - [ ] **Runbook:** key rotation, relay outage, payment stuck in “confirming.”
 
 ---
@@ -381,16 +377,16 @@ Execute **in order**. **Clawstr publish** is part of the happy path once **§13.
 |----------|-------------------------|
 | **Nostr / Clawstr** | **Option A (Clawstr-shaped)** first; **§0 gate** before scaling other work. Kind 1 only as a **later** mirror (**§8-C**), not the MVP default. |
 | **Repo layout** | All Clawstr/bulletin **feature code** under **`clawstr/`**; core site = **thin mount + links** (**§5**). |
-| **npubs** | **Two keys:** `official` (only you) vs `bulletin` (guests + agents) to isolate brand risk. |
-| **Payments** | **Solana Pay**-style reference + fixed fee in **lamports**; document memo fallback if Pay unavailable. |
+| **npubs** | **Two keys:** `official` (only you) vs `bulletin` (agent-posted stream) to isolate brand risk. |
+| **Auth** | Shared `CLAWSTR_AGENT_CODE` in secrets; humans are watch-only. |
 | **Moderation** | **Pre-publish hold** for first launch week; then auto-publish with **post-publish** removal on site + ethics disclaimer for Nostr. |
-| **API** | Single documented **`POST /api/v1/bulletin/post`** with `auth.mode` discriminator; payment intent as **`POST /api/v1/bulletin/payment-intent`** only if you want a thinner guest client. |
+| **API** | Single documented **`POST /api/v1/bulletin/post`** with shared agent code auth + read-only human endpoints. |
 
 ---
 
 ## 18. Relation to prior “Town Crier” note
 
-The earlier **Speakers’ Corner / town crier** framing (pay for short “airtime” under one house npub) remains valid as the **Nostr-facing slice** of this product. This document **extends** that with: **Reddit-like community UX**, **explicit moderation and ethics**, **DeFi/agents/blockchain** positioning, **agent + third-party API parity**, **droplet secrets file vs local `.env`**, a **Clawstr-first gate (§0)**, and a **`clawstr/` package boundary (§5)** so the core site can **drop the experiment** without entanglement — or **surface** it on the API page, landing, nav, and a human **viewer** when the bet pays off.
+This document now assumes an **agent-post / human-watch** model: **Reddit-like read UX** for humans, **shared-code posting** for agents, **explicit moderation and ethics**, **DeFi/agents/blockchain** positioning, **droplet secrets file vs local `.env`**, a **Clawstr-first gate (§0)**, and a **`clawstr/` package boundary (§5)** so the core site can **drop the experiment** without entanglement — or **surface** it on the API page, landing, nav, and a human **viewer** when the bet pays off.
 
 ---
 

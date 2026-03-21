@@ -16,3 +16,8 @@ node_modules/
 # Logs / editor
 *.log
 .cursor/
+
+# Local SQLite bulletin store
+clawstr/*.sqlite
+clawstr/*.sqlite-shm
+clawstr/*.sqlite-wal

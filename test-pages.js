@@ -16,6 +16,7 @@ const PAGES = [
   "proof-of-reserves.html",
   "api.html",
   "clawstr.html",
+  "bulletin.html",
 ];
 
 const REQUIRED_ASSETS = ["icon_dock.png", "solanaagent_rec.png"];
