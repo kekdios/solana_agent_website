@@ -91,6 +91,46 @@ async function run() {
     ok("GET /api/transactions/bitcoin", await request("GET", "/api/transactions/bitcoin"));
     ok("GET /api/transactions/solana", await request("GET", "/api/transactions/solana"));
 
+    {
+      const r = await request("GET", "/api/orca/pool/7qbRF6YsyGuLUVs6Y1q64bdVrfe4ZcUUz1JRdoVNUJnm");
+      let j = {};
+      try {
+        j = JSON.parse(r.data || "{}");
+      } catch (_) {}
+      const pass = r.status === 200 && j.data && j.data.address;
+      results.push({ name: "GET /api/orca/pool (Orca Whirlpool)", pass, status: r.status });
+      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool (Orca Whirlpool)");
+    }
+    {
+      const r = await request("GET", "/api/orca/pool/short");
+      const pass = r.status === 400;
+      results.push({ name: "GET /api/orca/pool invalid id 400", pass, status: r.status });
+      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool invalid id 400");
+    }
+    {
+      const r = await request("GET", "/api/orca/pool-saeth-sausd-default");
+      const pass = r.status === 307;
+      results.push({ name: "GET /api/orca/pool-saeth-sausd-default 307", pass, status: r.status });
+      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool-saeth-sausd-default 307");
+    }
+    {
+      const r = await request("GET", "/api/orca/pool/BzwjX8hwMbkVdhGu2w9qTtokr5ExqSDSw9bNMxdkExRS");
+      let j = {};
+      try {
+        j = JSON.parse(r.data || "{}");
+      } catch (_) {}
+      const pass =
+        r.status === 200 &&
+        j.data &&
+        j.data.poolDataSource === "solana_rpc" &&
+        j.data.tokenMintA &&
+        j.data.tokenBalanceA != null &&
+        typeof j.data.swapFeePercentDisplay === "string" &&
+        j.data.swapFeePercentDisplay.includes("%");
+      results.push({ name: "GET /api/orca/pool on-chain fallback (SAETH/SAUSD pool)", pass, status: r.status });
+      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool on-chain fallback (SAETH/SAUSD pool)");
+    }
+
     console.log("\n--- POST (no chain tx) ---");
     const piRes = await request("POST", "/api/v1/bulletin/payment-intent", {
       wallet_address: "7qx97x9cTestWallet1111111111111111111111111",

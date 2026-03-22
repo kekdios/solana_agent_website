@@ -60,18 +60,38 @@ expect << 'EXPECT_SCRIPT'
 set timeout 120
 
 # 1. Create remote dir
-spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "mkdir -p $env(REMOTE_DIR) $env(REMOTE_DIR)/lib/asry"
+spawn ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "mkdir -p $env(REMOTE_DIR) $env(REMOTE_DIR)/lib/asry $env(REMOTE_DIR)/scripts $env(REMOTE_DIR)/systemd"
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
-# 2. SCP website files (static + API server)
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/asry.html $env(CONTENT_DIR)/reserves-bitcoin.html $env(CONTENT_DIR)/reserves-absr.html $env(CONTENT_DIR)/reserves-solana.html $env(CONTENT_DIR)/reserves-declaration.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/clawstr.html $env(CONTENT_DIR)/bulletin.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/icon_asry_nb.png $env(CONTENT_DIR)/icon_absr_nb.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/SOL.png $env(CONTENT_DIR)/USDC.png $env(CONTENT_DIR)/USDT.png $env(CONTENT_DIR)/api-server.cjs $env(CONTENT_DIR)/openapi.json $env(CONTENT_DIR)/package.json $env(CONTENT_DIR)/package-lock.json $env(CONTENT_DIR)/mint-absr-to-reserve.cjs $env(CONTENT_DIR)/run-daily-absr-mint.sh $env(CONTENT_DIR)/test-lifi-sol-to-btc.js $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+# 2. SCP website files (static + API server) — two spawns so Tcl/expect does not truncate a single long line
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/treasury.html $env(CONTENT_DIR)/sabtc.html $env(CONTENT_DIR)/saeth.html $env(CONTENT_DIR)/saeth-sausd.html $env(CONTENT_DIR)/pool-fee-format.js $env(CONTENT_DIR)/treasury-mint-schedule.json $env(CONTENT_DIR)/asry.html $env(CONTENT_DIR)/reserves-bitcoin.html $env(CONTENT_DIR)/reserves-absr.html $env(CONTENT_DIR)/reserves-solana.html $env(CONTENT_DIR)/reserves-declaration.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/clawstr.html $env(CONTENT_DIR)/bulletin.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/icon_asry_nb.png $env(CONTENT_DIR)/icon_absr_nb.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/SOL.png $env(CONTENT_DIR)/USDC.png $env(CONTENT_DIR)/BTC.png $env(CONTENT_DIR)/ETH.png $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+expect "password:"
+send "$env(DROPLET_SSH_PASSWORD)\r"
+expect eof
+
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/USDT.png $env(CONTENT_DIR)/api-server.cjs $env(CONTENT_DIR)/openapi.json $env(CONTENT_DIR)/package.json $env(CONTENT_DIR)/package-lock.json $env(CONTENT_DIR)/mint-absr-to-reserve.cjs $env(CONTENT_DIR)/run-daily-absr-mint.sh $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+expect "password:"
+send "$env(DROPLET_SSH_PASSWORD)\r"
+expect eof
+
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/scripts/mint-treasury-sabtc-saeth-scheduled.cjs $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/scripts/
+expect "password:"
+send "$env(DROPLET_SSH_PASSWORD)\r"
+expect eof
+
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.service $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.timer $env(CONTENT_DIR)/systemd/README.md $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/systemd/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
 spawn scp -r -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/lib/asry $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/lib/
+expect "password:"
+send "$env(DROPLET_SSH_PASSWORD)\r"
+expect eof
+
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/lib/orca-whirlpool-onchain.cjs $env(CONTENT_DIR)/lib/whirlpool-fee-format.cjs $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/lib/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
@@ -115,5 +135,14 @@ if { $env(UPDATE_ONLY) == "1" } {
 }
 EXPECT_SCRIPT
 
+# 3b. Restart API on droplet (deps + systemd)
+export DROPLET_IP DROPLET_SSH_PASSWORD REMOTE_USER
+expect << 'RESTART_SCRIPT'
+set timeout 180
+spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "cd /var/www/solana_agent && npm install --omit=dev && systemctl restart solana-agent-website-api && systemctl is-active solana-agent-website-api"
+expect "password:"
+send "$env(DROPLET_SSH_PASSWORD)\r"
+expect eof
+RESTART_SCRIPT
+
 echo "Deploy complete. Visit https://www.solanaagent.app"
-echo "If the API uses Clawstr (nostr-tools): on the droplet run  cd /var/www/solana_agent && npm install && systemctl restart solana-agent-website-api"

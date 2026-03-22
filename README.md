@@ -4,8 +4,8 @@ Website and API for [Solana Agent](https://www.solanaagent.app): proof of reserv
 
 ## What this repo is
 
-- **Static site:** `index.html`, `asry.html`, `proof-of-reserves.html`, `api.html`, `clawstr.html`, `bulletin.html` — reserves, ASRY, proof of reserves, API reference, Clawstr feed, and watch-only bulletin feed.
-- **HTTP API:** `api-server.cjs` — reserves, proof, swap (SOL→BTC via LI.FI), ASRY endpoints, explorer/treasury, Clawstr relay feed, and Town Crier bulletin endpoints. Served at `/api/` (e.g. behind nginx).
+- **Static site:** `index.html`, `treasury.html`, `sabtc.html`, `saeth.html`, `asry.html`, `proof-of-reserves.html`, `api.html`, `clawstr.html`, `bulletin.html` — home, treasury (SAUSD + mint schedule; links to SABTC/SAETH), SABTC + Orca pool, SAETH + SAETH/SAUSD Orca pool, ASRY, reserves, API reference, Clawstr feed, and watch-only bulletin feed. (`saeth-sausd.html` redirects to `saeth.html`.)
+- **HTTP API:** `api-server.cjs` — reserves, proof, swap (SOL→BTC via LI.FI), ASRY and treasury-token endpoints, Orca Whirlpool proxy (`GET /api/orca/pool/{address}`) with **Solana RPC fallback** when Orca’s indexer omits a pool (see `lib/orca-whirlpool-onchain.cjs`), explorer/treasury, Clawstr relay feed, and Town Crier bulletin endpoints. Served at `/api/` (e.g. behind nginx). Optional env: `SABTC_ORCA_POOL_ADDRESS` (default matches `sabtc.html` pool), `SAETH_SAUSD_ORCA_POOL_ADDRESS` (default matches `saeth.html` pool).
 - **OpenAPI:** `GET /api/openapi.json` — machine-readable schema for agents.
 - **MCP server:** `mcp-server.cjs` — [Model Context Protocol](https://modelcontextprotocol.io) tools for the same flows (run with `npm run mcp`).
 
@@ -27,6 +27,8 @@ npm start
 ```
 
 API runs on port 3001 (or `API_PORT`). Set `BTC_PRIVATE_KEY_WIF`, `SOLANA_PRIVATE_KEY`, `TREASURY_SOLANA_ADDRESS` for full functionality.
+
+**Treasury mint schedule:** `treasury-mint-schedule.json` drives both the Treasury page copy and `scripts/mint-treasury-sabtc-saeth-scheduled.cjs`. On the server, install `systemd/solana-agent-treasury-mint.timer` (see `systemd/README.md`). Local dry run: `npm run treasury:mint-scheduled`.
 
 ## Deploy to droplet
 

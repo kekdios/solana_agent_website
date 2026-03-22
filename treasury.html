@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="icon_dock.png" type="image/png" />
-    <title>ASRY — Agent Strategic Reserve Yield | Solana Agent</title>
+    <title>Treasury — SAUSD | Solana Agent</title>
     <style>
       * { box-sizing: border-box; }
       html, body {
@@ -54,11 +54,20 @@
       .disclaimer-modal .disclaimer-close:hover { background: #2a2a30; border-color: #34d399; }
       .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
       .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
-      .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; }
-      .page-title .title-logo { height: 5.625rem; width: auto; display: block; }
+      .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      .page-title .title-icons { display: flex; align-items: center; gap: 0.35rem; }
+      .page-title .title-icons img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
+      .page-title .title-icons img.treasury-hero-icon { border-radius: 0.5rem; object-fit: contain; }
       main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
       h1 { font-size: 1.5rem; font-weight: 600; color: #e2e8f0; margin: 0 0 0.5rem; }
       .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1.5rem; }
+      .treasury-addr-note { font-size: 0.8125rem; color: #64748b; margin: 0 0 1rem; word-break: break-all; }
+      .treasury-addr-note a { color: #34d399; text-decoration: none; }
+      .treasury-addr-note a:hover { text-decoration: underline; }
+      .treasury-schedule-card h2 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; color: #e2e8f0; }
+      .treasury-schedule-card .schedule-lead { font-size: 0.9375rem; color: #cbd5e1; margin: 0 0 1rem; line-height: 1.6; }
+      .treasury-schedule-card .schedule-note { font-size: 0.8125rem; color: #94a3b8; margin: 0 0 0.75rem; line-height: 1.55; }
+      .treasury-schedule-card .schedule-meta { font-size: 0.75rem; color: #64748b; margin: 0; }
       .reserve-card {
         margin-bottom: 2rem;
         padding: 1.5rem 1.75rem;
@@ -73,7 +82,7 @@
         gap: 0.5rem;
         margin-bottom: 0.25rem;
       }
-      .card-header-row .panel-title-icon { width: 3.75rem; height: 3.75rem; margin-right: 0.5rem; flex-shrink: 0; }
+      .card-header-row .panel-title-icon { width: 1.875rem; height: 1.875rem; margin-right: 0.5rem; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
       .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
       .sats-note { font-size: 0.8125rem; color: #64748b; margin: 0.5rem 0 1rem 0; }
       .arb-token-info {
@@ -188,9 +197,8 @@
         }
         .site-main { margin-left: 0; min-height: auto; }
         .page-title, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
-        .page-title .title-logo { height: 4rem; }
         .card-header-row { flex-wrap: wrap; align-items: flex-start; }
-        .card-header-row .panel-title-icon { width: 3rem; height: 3rem; }
+        .card-header-row .panel-title-icon { width: 1.5rem; height: 1.5rem; }
       }
     </style>
   </head>
@@ -198,10 +206,10 @@
     <aside class="site-sidebar" role="navigation">
       <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
       <a href="index.html">Home</a>
-      <a href="treasury.html">Treasury</a>
+      <a href="treasury.html" class="active">Treasury</a>
       <a href="sabtc.html">SABTC</a>
       <a href="saeth.html">SAETH</a>
-      <a href="asry.html" class="active">ASRY</a>
+      <a href="asry.html">ASRY</a>
       <a href="reserves-absr.html">ABSR</a>
       <a href="reserves-bitcoin.html">Bitcoin</a>
       <a href="reserves-solana.html">Solana</a>
@@ -243,73 +251,109 @@
     <div class="site-main">
       <div class="page-title">
         <div class="title-row">
-          <img src="icon_asry_nb.png" alt="ASRY" class="title-logo" width="90" height="90" />
-          <h1>Agent Strategic Reserve Yield</h1>
+          <div class="title-icons" aria-hidden="true">
+            <img src="icon_dock.png" alt="" class="treasury-hero-icon" width="40" height="40" />
+          </div>
+          <h1>Treasury</h1>
         </div>
-        <p class="tagline">ASRY — SPL token on Solana (no Bitcoin reserve peg)</p>
+        <p class="tagline"><strong>SAUSD</strong> on this page — SPL stable-style token for the published treasury (<code>TREASURY_SOLANA_ADDRESS</code>). <strong>SABTC</strong> and <strong>SAETH</strong> have their own pages (mint details, Orca pools, and transaction history).</p>
+        <p class="treasury-addr-note" id="treasury-pubkey-line">Treasury (Solana): <span id="treasury-pubkey">Loading…</span></p>
       </div>
       <main>
-        <section class="reserve-card" aria-labelledby="asry-heading">
+        <section class="reserve-card treasury-schedule-card" id="treasury-schedule-section" aria-labelledby="schedule-heading">
+          <h2 id="schedule-heading">Scheduled treasury mints</h2>
+          <p class="schedule-lead" id="treasury-schedule-lead">Loading mint schedule…</p>
+          <div class="arb-summary" id="treasury-schedule-rates" style="display: none;"></div>
+          <p class="schedule-note" id="treasury-schedule-note" style="display: none;"></p>
+          <p class="schedule-meta">Uses <code>treasury-mint-schedule.json</code> (same file the server job reads). Timer: <code>solana-agent-treasury-mint.timer</code> · script <code>scripts/mint-treasury-sabtc-saeth-scheduled.cjs</code> — see <code>systemd/README.md</code> on the server.</p>
+        </section>
+
+        <section class="reserve-card" aria-labelledby="sausd-heading">
           <div class="card-header-row">
-            <h2 id="asry-heading"><img src="icon_asry_nb.png" alt="ASRY" class="panel-title-icon" width="60" height="60" /> ASRY</h2>
-            <button type="button" class="btn" id="asry-refresh">Refresh</button>
+            <h2 id="sausd-heading"><img src="USDC.png" alt="" class="panel-title-icon" width="30" height="30" /> SAUSD</h2>
+            <button type="button" class="btn" data-refresh-token="sausd">Refresh</button>
           </div>
-          <p class="sats-note">On-chain details load from the server (ASRY_MINT_ADDRESS). This token is <strong>not</strong> priced or backed against BTC; it is separate from ABSR.</p>
-          <div class="arb-token-info" id="asry-token-info">
+          <p class="sats-note">On-chain details load from the server (default mint <code>SAUSD_MINT_ADDRESS</code>). Icon is illustrative (USDC-style mark).</p>
+          <div class="arb-token-info">
             <div class="summary-item">
-              <span class="summary-label">ASRY token (mint)</span>
-              <span class="addr-text" id="asry-mint-wrap"><span id="asry-mint">—</span></span>
+              <span class="summary-label">SAUSD token (mint)</span>
+              <span class="addr-text" id="ts-sausd-mint-wrap"><span id="ts-sausd-mint">—</span></span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Creator / treasury (receives supply)</span>
-              <span class="addr-text" id="asry-creator-wrap"><span id="asry-creator">—</span></span>
+              <span class="addr-text" id="ts-sausd-creator-wrap"><span id="ts-sausd-creator">—</span></span>
             </div>
           </div>
           <div class="arb-summary">
             <div class="summary-item">
               <span class="summary-label">Symbol</span>
-              <span class="balance-main" id="asry-symbol">ASRY</span>
+              <span class="balance-main" id="ts-sausd-symbol">SAUSD</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Decimals</span>
-              <span class="balance-main" id="asry-decimals">9</span>
+              <span class="balance-main" id="ts-sausd-decimals">9</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Recorded supply (smallest units)</span>
-              <span class="balance-main" id="asry-supply">10,000,000,000</span>
+              <span class="balance-main" id="ts-sausd-supply">—</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Description</span>
-              <span class="balance-main" style="font-size:0.9375rem;font-weight:500;color:#cbd5e1;" id="asry-desc">Agent APY token</span>
+              <span class="balance-main" style="font-size:0.9375rem;font-weight:500;color:#cbd5e1;" id="ts-sausd-desc">—</span>
             </div>
           </div>
-          <p class="sats-note" id="asry-api-msg" style="display:none;"></p>
+          <p class="sats-note" id="ts-sausd-api-msg" style="display:none;"></p>
           <div class="tx-table-wrap">
-            <p class="sats-note" style="margin-bottom:0.5rem;">ASRY transactions (mint and transfers; most recent first)</p>
-            <div id="asry-tx-loading" class="loading">Loading…</div>
-            <table class="tx-table" id="asry-tx-table" style="display:none;">
+            <p class="sats-note" style="margin-bottom:0.5rem;">SAUSD transactions (mint and transfers; most recent first)</p>
+            <div id="ts-sausd-tx-loading" class="loading">Loading…</div>
+            <table class="tx-table" id="ts-sausd-tx-table" style="display:none;">
               <thead><tr><th>Transaction</th><th>Date</th></tr></thead>
-              <tbody id="asry-tx-body"></tbody>
+              <tbody id="ts-sausd-tx-body"></tbody>
             </table>
-            <div class="pagination" id="asry-pagination" style="display:none;"></div>
+            <div class="pagination" id="ts-sausd-pagination" style="display:none;"></div>
           </div>
         </section>
 
+        <section class="reserve-card" aria-labelledby="sabtc-teaser-heading">
+          <div class="card-header-row">
+            <h2 id="sabtc-teaser-heading"><img src="BTC.png" alt="" class="panel-title-icon" width="24" height="24" /> SABTC</h2>
+          </div>
+          <p class="sats-note" style="margin-top:0">
+            Solana SPL treasury token with a bitcoin-themed name — <strong>not</strong> native BTC. The <a class="link-accent" href="sabtc.html">SABTC</a> page shows the mint, supply, recent transactions, and the <strong>SABTC / SAUSD</strong> Orca Whirlpool (with on-chain fallback when Orca’s API omits the pool).
+          </p>
+          <p class="sats-note" style="margin-bottom:0">
+            <a class="btn" href="sabtc.html">Open SABTC page</a>
+          </p>
+        </section>
+
+        <section class="reserve-card" aria-labelledby="saeth-teaser-heading">
+          <div class="card-header-row">
+            <h2 id="saeth-teaser-heading"><img src="ETH.png" alt="" class="panel-title-icon" width="24" height="24" /> SAETH</h2>
+          </div>
+          <p class="sats-note" style="margin-top:0">
+            Solana SPL treasury token with an ethereum-themed name — <strong>not</strong> native ETH. The <a class="link-accent" href="saeth.html">SAETH</a> page shows the mint, supply, recent transactions, and the <strong>SAETH / SAUSD</strong> Orca Whirlpool.
+          </p>
+          <p class="sats-note" style="margin-bottom:0">
+            <a class="btn" href="saeth.html">Open SAETH page</a>
+          </p>
+        </section>
+
         <div class="design-content">
-          <h3>ASRY — Treasury &amp; yield</h3>
+          <h3>Treasury tokens</h3>
           <p>
-            <strong>ASRY (Agent Strategic Reserve Yield)</strong> is a <strong>discretionary BTC-backed treasury token with variable distributions</strong>. It is <strong>not</strong> a stablecoin, <strong>not</strong> a bond, and <strong>not</strong> a yield guarantee. Price discovery is on a treasury-owned <strong>ASRY/USDC</strong> pool; the treasury controls and operates the pool.
+            <strong>SAUSD</strong> is loaded on this page. <strong>SABTC</strong> and <strong>SAETH</strong> are documented on their dedicated pages (see panels above). All are SPL mints in the Solana Agent naming scheme, not native USDC, BTC, or ETH. Verify on
+            <a class="link-accent" href="https://explorer.solana.com" target="_blank" rel="noopener noreferrer">Solana Explorer</a>.
           </p>
           <p>
-            <strong>Yield:</strong> Non-staking — eligibility is holding ASRY per snapshot rules. Distributions are variable and health-gated. Receiving (USDC/USDT) and sending (payouts) are the critical path; on-chain programs follow once rails are reliable.
+            Default mints are configured in the API server; operators can override with <code>SAUSD_MINT_ADDRESS</code>, <code>SABTC_MINT_ADDRESS</code>, and <code>SAETH_MINT_ADDRESS</code>. Treasury pubkey comes from <code>TREASURY_SOLANA_ADDRESS</code> via <code>GET /api/explorer/treasury</code>.
           </p>
           <p>
-            Mint and creator addresses above are from the server (<code>ASRY_MINT_ADDRESS</code>). Verify on <a class="link-accent" href="https://explorer.solana.com" target="_blank" rel="noopener noreferrer">Solana Explorer</a>.
+            <strong>Scheduled inflation (SABTC / SAETH):</strong> amounts and cadence are in <code>treasury-mint-schedule.json</code> and summarized in the schedule panel above. The systemd timer only runs if installed on the host and the treasury key remains <strong>mint authority</strong> for those mints.
           </p>
         </div>
       </main>
       <footer style="width:100%; max-width:52rem;">
-        <a href="index.html">Solana Agent</a> · ASRY
+        <a href="index.html">Solana Agent</a> · Treasury
       </footer>
     </div>
 
@@ -317,10 +361,11 @@
       const API = "/api";
       const SOLANA_EXPLORER = "https://explorer.solana.com";
       const SOLSCAN_TX = "https://solscan.io/tx";
-      const DEFAULT_DECIMALS = 9;
-      const DEFAULT_SUPPLY_RAW = "10000000000";
-      const DEFAULT_DESC = "Agent APY token";
       const ROWS_PER_PAGE = 10;
+      const TOKEN_IDS = ["sausd"];
+      const DEFAULT_LABELS = { sausd: "SAUSD" };
+
+      const txState = { sausd: { list: [], page: 1 } };
 
       function escapeHtml(s) {
         const div = document.createElement("div");
@@ -328,8 +373,8 @@
         return div.innerHTML;
       }
 
-      function linkAddr(label, addr) {
-        if (!addr || addr.length < 32) return escapeHtml(label || "—");
+      function linkAddr(addr) {
+        if (!addr || addr.length < 32) return "—";
         const a = document.createElement("a");
         a.href = SOLANA_EXPLORER + "/address/" + encodeURIComponent(addr);
         a.target = "_blank";
@@ -338,16 +383,21 @@
         return a.outerHTML;
       }
 
-      /** On-chain ASRY mint/supply from server (ASRY_MINT_ADDRESS + getMint). */
-      async function loadAsryInfo() {
-        const res = await fetch(API + "/asry-info");
+      async function loadTreasuryPubkey() {
+        const res = await fetch(API + "/explorer/treasury");
         if (!res.ok) return null;
         const data = await res.json();
-        return data.mint_address ? data : null;
+        return data.treasury_address || null;
       }
 
-      async function loadAsryTransactions() {
-        const res = await fetch(API + "/asry/transactions");
+      async function loadTokenInfo(id) {
+        const res = await fetch(API + "/treasury-token/" + id + "/info");
+        if (!res.ok) return null;
+        return res.json();
+      }
+
+      async function loadTokenTransactions(id) {
+        const res = await fetch(API + "/treasury-token/" + id + "/transactions");
         if (!res.ok) return [];
         const data = await res.json();
         return data.transactions || [];
@@ -355,8 +405,7 @@
 
       function formatDate(ts) {
         if (ts == null) return "—";
-        const d = new Date(ts * 1000);
-        return d.toLocaleString();
+        return new Date(ts * 1000).toLocaleString();
       }
 
       function paginate(arr, page) {
@@ -364,8 +413,8 @@
         return arr.slice(start, start + ROWS_PER_PAGE);
       }
 
-      function renderPagination(containerId, currentPage, totalPages, onPage) {
-        const el = document.getElementById(containerId);
+      function renderPagination(id, currentPage, totalPages, onPage) {
+        const el = document.getElementById("ts-" + id + "-pagination");
         if (!el || totalPages <= 1) {
           if (el) el.style.display = "none";
           return;
@@ -387,21 +436,20 @@
         el.appendChild(next);
       }
 
-      var asryTxs = [];
-      var asryPage = 1;
-
-      function renderAsryTable() {
-        const body = document.getElementById("asry-tx-body");
-        const table = document.getElementById("asry-tx-table");
-        const loading = document.getElementById("asry-tx-loading");
-        if (!body || !table || !loading) return;
-        const totalPages = Math.max(1, Math.ceil(asryTxs.length / ROWS_PER_PAGE));
-        const page = Math.min(asryPage, totalPages);
-        const rows = paginate(asryTxs, page);
+      function renderTxTable(id) {
+        const body = document.getElementById("ts-" + id + "-tx-body");
+        const table = document.getElementById("ts-" + id + "-tx-table");
+        const loading = document.getElementById("ts-" + id + "-tx-loading");
+        const st = txState[id];
+        if (!body || !table || !loading || !st) return;
+        const totalPages = Math.max(1, Math.ceil(st.list.length / ROWS_PER_PAGE));
+        const page = Math.min(st.page, totalPages);
+        const rows = paginate(st.list, page);
 
         loading.style.display = "none";
-        if (asryTxs.length === 0) {
-          body.innerHTML = "<tr><td colspan=\"2\">No ASRY transactions</td></tr>";
+        const label = DEFAULT_LABELS[id] || id.toUpperCase();
+        if (st.list.length === 0) {
+          body.innerHTML = "<tr><td colspan=\"2\">No " + escapeHtml(label) + " transactions</td></tr>";
         } else {
           body.innerHTML = rows
             .map(function (tx) {
@@ -412,78 +460,151 @@
               return "<tr><td>" + link + "</td><td>" + formatDate(tx.blockTime) + "</td></tr>";
             })
             .join("");
-          renderPagination("asry-pagination", page, totalPages, function (p) {
-            asryPage = p;
-            renderAsryTable();
+          renderPagination(id, page, totalPages, function (p) {
+            st.page = p;
+            renderTxTable(id);
           });
         }
         table.style.display = "table";
       }
 
-      function applyDefaults() {
-        document.getElementById("asry-mint-wrap").innerHTML = "<span id=\"asry-mint\">— (set ASRY_MINT_ADDRESS on the server to show mint)</span>";
-        document.getElementById("asry-creator-wrap").innerHTML = "<span id=\"asry-creator\">—</span>";
-        document.getElementById("asry-symbol").textContent = "ASRY";
-        document.getElementById("asry-decimals").textContent = String(DEFAULT_DECIMALS);
-        document.getElementById("asry-supply").textContent = Number(DEFAULT_SUPPLY_RAW).toLocaleString();
-        document.getElementById("asry-desc").textContent = DEFAULT_DESC;
+      function setMsg(id, show, className, htmlOrText, isHtml) {
+        const msg = document.getElementById("ts-" + id + "-api-msg");
+        if (!msg) return;
+        msg.style.display = show ? "block" : "none";
+        msg.className = show ? className : "sats-note";
+        if (show) {
+          if (isHtml) msg.innerHTML = htmlOrText;
+          else msg.textContent = htmlOrText;
+        }
       }
 
-      async function refresh() {
-        const btn = document.getElementById("asry-refresh");
-        const msg = document.getElementById("asry-api-msg");
-        const txLoading = document.getElementById("asry-tx-loading");
-        const txTable = document.getElementById("asry-tx-table");
+      async function refreshToken(id) {
+        const btn = document.querySelector("[data-refresh-token=\"" + id + "\"]");
+        const txLoading = document.getElementById("ts-" + id + "-tx-loading");
+        const txTable = document.getElementById("ts-" + id + "-tx-table");
         if (btn) { btn.disabled = true; btn.textContent = "…"; }
         if (txLoading) txLoading.style.display = "block";
         if (txTable) txTable.style.display = "none";
+
         try {
-          const [asryInfo, txList] = await Promise.all([loadAsryInfo(), loadAsryTransactions()]);
-          asryTxs = txList || [];
-          asryPage = 1;
-          renderAsryTable();
-          const mint = (asryInfo && asryInfo.mint_address) ? asryInfo.mint_address.trim() : "";
-          const creator = (asryInfo && asryInfo.creator_address) ? asryInfo.creator_address.trim() : "";
-          const supplyRaw = (asryInfo && asryInfo.supply != null) ? String(asryInfo.supply).replace(/,/g, "") : null;
-          const decimals = (asryInfo && asryInfo.decimals != null) ? asryInfo.decimals : DEFAULT_DECIMALS;
+          const [info, txs] = await Promise.all([loadTokenInfo(id), loadTokenTransactions(id)]);
+          txState[id].list = txs || [];
+          txState[id].page = 1;
+          renderTxTable(id);
 
-          document.getElementById("asry-mint-wrap").innerHTML = mint ? linkAddr(mint, mint) : "—";
-          document.getElementById("asry-creator-wrap").innerHTML = creator ? linkAddr(creator, creator) : "—";
-          document.getElementById("asry-symbol").textContent = "ASRY";
-          document.getElementById("asry-decimals").textContent = String(decimals);
-          document.getElementById("asry-supply").textContent = supplyRaw ? Number(supplyRaw).toLocaleString() : "—";
-          document.getElementById("asry-desc").textContent = DEFAULT_DESC;
+          const mint = info && info.mint_address ? String(info.mint_address).trim() : "";
+          const creator = info && info.creator_address ? String(info.creator_address).trim() : "";
+          const supplyRaw = info && info.supply != null ? String(info.supply).replace(/,/g, "") : null;
+          const decimals = info && info.decimals != null ? info.decimals : 9;
+          const desc = (info && info.token_name) ? info.token_name : "—";
+          const sym = (info && info.token_symbol) ? info.token_symbol : DEFAULT_LABELS[id];
 
-          var supplyLabelEl = document.getElementById("asry-supply") && document.getElementById("asry-supply").closest(".summary-item") && document.getElementById("asry-supply").closest(".summary-item").querySelector(".summary-label");
+          document.getElementById("ts-" + id + "-mint-wrap").innerHTML = mint ? linkAddr(mint) : "—";
+          document.getElementById("ts-" + id + "-creator-wrap").innerHTML = creator ? linkAddr(creator) : "—";
+          document.getElementById("ts-" + id + "-symbol").textContent = sym;
+          document.getElementById("ts-" + id + "-decimals").textContent = String(decimals);
+          document.getElementById("ts-" + id + "-supply").textContent = supplyRaw ? Number(supplyRaw).toLocaleString() : "—";
+          document.getElementById("ts-" + id + "-desc").textContent = desc;
+
+          const supplyEl = document.getElementById("ts-" + id + "-supply");
+          const supplyLabelEl = supplyEl && supplyEl.closest(".summary-item") && supplyEl.closest(".summary-item").querySelector(".summary-label");
           if (supplyLabelEl) {
-            supplyLabelEl.textContent = (asryInfo && asryInfo.supply != null) ? "Supply (on-chain, smallest units)" : "Recorded supply (smallest units)";
+            supplyLabelEl.textContent = info && info.supply != null ? "Supply (on-chain, smallest units)" : "Recorded supply (smallest units)";
           }
 
-          msg.style.display = "none";
-          msg.textContent = "";
+          setMsg(id, false, "", "", false);
           if (!mint) {
-            msg.style.display = "block";
-            msg.className = "sats-note";
-            msg.innerHTML = "ASRY not found. Set <strong>ASRY_MINT_ADDRESS</strong> on the server.";
-          } else if (asryInfo && asryInfo.error) {
-            msg.style.display = "block";
-            msg.className = "sats-note";
-            msg.textContent = "Mint and creator from config; supply could not be fetched: " + (asryInfo.error || "");
+            setMsg(id, true, "sats-note", "Mint not configured for this token on the server.", false);
+          } else if (info && info.error) {
+            setMsg(id, true, "sats-note", "Mint from config; supply could not be fetched: " + (info.error || ""), false);
           }
         } catch (e) {
-          applyDefaults();
-          msg.style.display = "block";
-          msg.className = "error";
-          msg.textContent = "Could not load ASRY info.";
-          asryTxs = [];
-          renderAsryTable();
+          setMsg(id, true, "error", "Could not load token info.", false);
+          txState[id].list = [];
+          renderTxTable(id);
         } finally {
           if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
         }
       }
 
-      document.getElementById("asry-refresh").addEventListener("click", refresh);
-      refresh();
+      async function initTreasuryLine() {
+        const wrap = document.getElementById("treasury-pubkey");
+        try {
+          const pk = await loadTreasuryPubkey();
+          if (pk) wrap.innerHTML = linkAddr(pk);
+          else wrap.textContent = "— (server has no TREASURY_SOLANA_ADDRESS)";
+        } catch (e) {
+          wrap.textContent = "—";
+        }
+      }
+
+      function formatMintAmount(n) {
+        if (!Number.isFinite(n)) return "—";
+        var r = Math.round(n * 1e8) / 1e8;
+        var t = r.toFixed(8).replace(/\.?0+$/, "");
+        return t || "0";
+      }
+
+      async function loadTreasurySchedule() {
+        var lead = document.getElementById("treasury-schedule-lead");
+        var ratesEl = document.getElementById("treasury-schedule-rates");
+        var noteEl = document.getElementById("treasury-schedule-note");
+        var heading = document.getElementById("schedule-heading");
+        try {
+          var res = await fetch("treasury-mint-schedule.json");
+          if (!res.ok) throw new Error("missing");
+          var s = await res.json();
+          var im = Number(s.interval_minutes);
+          if (!Number.isFinite(im) || im <= 0) im = 10;
+          var b = Number(s.amounts && s.amounts.sabtc);
+          var e = Number(s.amounts && s.amounts.saeth);
+          if (heading && s.title) heading.textContent = s.title;
+          var mult = 60 / im;
+          if (lead) {
+            lead.textContent =
+              "Every " +
+              im +
+              " minutes the treasury mints " +
+              formatMintAmount(b) +
+              " SABTC and " +
+              formatMintAmount(e) +
+              " SAETH into the treasury wallet (ATAs created if needed).";
+          }
+          if (ratesEl) {
+            ratesEl.style.display = "flex";
+            ratesEl.innerHTML =
+              "<div class=\"summary-item\"><span class=\"summary-label\">Each run</span><span class=\"balance-main\" style=\"font-size:0.9375rem;font-weight:500;color:#cbd5e1\">" +
+              escapeHtml(formatMintAmount(b) + " SABTC · " + formatMintAmount(e) + " SAETH") +
+              "</span></div>" +
+              "<div class=\"summary-item\"><span class=\"summary-label\">Per hour (equiv.)</span><span class=\"balance-main\" style=\"font-size:0.9375rem;font-weight:500;color:#cbd5e1\">" +
+              escapeHtml(formatMintAmount(b * mult) + " SABTC · " + formatMintAmount(e * mult) + " SAETH") +
+              "</span></div>" +
+              "<div class=\"summary-item\"><span class=\"summary-label\">Per day (equiv.)</span><span class=\"balance-main\" style=\"font-size:0.9375rem;font-weight:500;color:#cbd5e1\">" +
+              escapeHtml(formatMintAmount(b * mult * 24) + " SABTC · " + formatMintAmount(e * mult * 24) + " SAETH") +
+              "</span></div>";
+          }
+          if (noteEl && s.note) {
+            noteEl.style.display = "block";
+            noteEl.textContent = s.note;
+          }
+        } catch (err) {
+          if (lead) lead.textContent = "Could not load treasury-mint-schedule.json.";
+        }
+      }
+
+      function refreshAll() {
+        return Promise.all(TOKEN_IDS.map(function (id) { return refreshToken(id); }));
+      }
+
+      TOKEN_IDS.forEach(function (id) {
+        const b = document.querySelector("[data-refresh-token=\"" + id + "\"]");
+        if (b) b.addEventListener("click", function () { refreshToken(id); });
+      });
+
+      initTreasuryLine();
+      loadTreasurySchedule();
+      refreshAll();
     </script>
   </body>
 </html>

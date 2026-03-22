@@ -1,0 +1,9 @@
+{
+  "interval_minutes": 10,
+  "amounts": {
+    "sabtc": 3.125,
+    "saeth": 12
+  },
+  "title": "Scheduled treasury mints",
+  "note": "A server job (systemd timer) uses the treasury key as mint authority. Mints go to the treasury wallet’s token accounts (ATAs). If the timer is disabled or the key is not mint authority, no automatic mints occur."
+}

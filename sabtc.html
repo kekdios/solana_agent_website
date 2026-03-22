@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>SABTC — Solana Agent Bitcoin (SPL) | Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        min-height: 100vh;
+        background: #0d0d0f;
+        color: #e2e8f0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      body { display: flex; height: 100vh; overflow: hidden; }
+      .site-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 14rem;
+        background: #121214;
+        border-right: 1px solid #1e1e24;
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+      }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a, .site-sidebar .nav-item {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem;
+        color: #94a3b8; text-decoration: none; border: none; background: none; cursor: pointer;
+        width: 100%; text-align: left; transition: background 0.15s, color 0.15s;
+      }
+      .site-sidebar a:hover, .site-sidebar .nav-item:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active, .site-sidebar .nav-item.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-disclaimer { margin-top: auto; padding: 0.5rem 0.75rem 0; font-size: 0.75rem; }
+      .site-sidebar .sidebar-disclaimer a { color: #64748b; text-decoration: underline; }
+      .site-sidebar .sidebar-disclaimer a:hover { color: #94a3b8; }
+      .site-sidebar .sidebar-version { padding: 0.25rem 0.75rem 0 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .disclaimer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+      .disclaimer-overlay.show { display: flex; }
+      .disclaimer-modal { max-width: 32rem; max-height: 85vh; overflow-y: auto; background: #121214; border: 1px solid #2a2a30; border-radius: 0.75rem; padding: 1.5rem; color: #cbd5e1; font-size: 0.875rem; line-height: 1.6; }
+      .disclaimer-modal h2 { font-size: 1rem; color: #e2e8f0; margin: 0 0 1rem; }
+      .disclaimer-modal p { margin: 0 0 0.75rem; }
+      .disclaimer-modal .disclaimer-close { display: block; margin-top: 1rem; padding: 0.5rem 1rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.5rem; color: #34d399; font-size: 0.875rem; cursor: pointer; }
+      .disclaimer-modal .disclaimer-close:hover { background: #2a2a30; border-color: #34d399; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+      .page-title { width: 100%; max-width: 52rem; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .page-title .title-row { display: flex; align-items: center; gap: 0.75rem; }
+      .page-title .title-logo { height: 2.5rem; width: auto; display: block; border-radius: 50%; object-fit: cover; }
+      main { max-width: 52rem; width: 100%; padding: 2rem 1.5rem 4rem; }
+      h1 { font-size: 1.5rem; font-weight: 600; color: #e2e8f0; margin: 0 0 0.5rem; }
+      .tagline { font-size: 0.9375rem; color: #94a3b8; margin: 0 0 1rem; }
+      .treasury-addr-note { font-size: 0.8125rem; color: #64748b; margin: 0 0 1.5rem; word-break: break-all; }
+      .treasury-addr-note a { color: #34d399; text-decoration: none; }
+      .treasury-addr-note a:hover { text-decoration: underline; }
+      .reserve-card {
+        margin-bottom: 2rem;
+        padding: 1.5rem 1.75rem;
+        background: #121214;
+        border: 1px solid #2a2a30;
+        border-radius: 1rem;
+      }
+      .card-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+      }
+      .card-header-row .panel-title-icon { width: 1.875rem; height: 1.875rem; margin-right: 0.5rem; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+      .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+      .sats-note { font-size: 0.8125rem; color: #64748b; margin: 0.5rem 0 1rem 0; }
+      .arb-token-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+      }
+      .arb-token-info .addr-text { font-size: 0.8125rem; word-break: break-all; }
+      .arb-token-info a { color: #34d399; text-decoration: none; }
+      .arb-token-info a:hover { text-decoration: underline; }
+      .arb-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+      }
+      .summary-item { display: flex; flex-direction: column; gap: 0.25rem; }
+      .summary-label { font-size: 0.8125rem; color: #64748b; }
+      .balance-main { font-size: 1.125rem; color: #34d399; font-weight: 600; }
+      .btn {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #1e1e24;
+        border: 1px solid #2a2a30;
+        border-radius: 0.5rem;
+        color: #34d399;
+        font-size: 0.875rem;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn:hover { background: #2a2a30; border-color: #34d399; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .design-content {
+        font-size: 0.9375rem;
+        color: #cbd5e1;
+        line-height: 1.7;
+        margin-top: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        background: #0d0d0f;
+        border: 1px solid #1e1e24;
+        border-radius: 0.75rem;
+      }
+      .design-content h3 { font-size: 1rem; color: #e2e8f0; margin: 0 0 0.75rem; }
+      .design-content p { margin: 0 0 1rem; }
+      .design-content p:last-child { margin-bottom: 0; }
+      .link-accent { color: #34d399; text-decoration: none; }
+      .link-accent:hover { text-decoration: underline; }
+      footer {
+        margin-top: auto;
+        padding: 2rem 1.5rem;
+        font-size: 0.8125rem;
+        color: #64748b;
+        border-top: 1px solid #1e1e24;
+        width: 100%;
+        text-align: center;
+      }
+      footer a { color: #34d399; text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
+      .error { color: #f87171; font-size: 0.875rem; }
+      .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
+      table.tx-table, table.pool-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      table.tx-table th,
+      table.tx-table td,
+      table.pool-table th,
+      table.pool-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
+      table.tx-table th, table.pool-table th { color: #64748b; font-weight: 500; }
+      table.tx-table td, table.pool-table td { color: #cbd5e1; }
+      table.tx-table a, table.pool-table a { color: #34d399; text-decoration: none; }
+      table.tx-table a:hover, table.pool-table a:hover { text-decoration: underline; }
+      .pool-table td.num { font-variant-numeric: tabular-nums; }
+      .pagination {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .pagination button {
+        padding: 0.35rem 0.75rem;
+        background: #1e1e24;
+        border: 1px solid #2a2a30;
+        border-radius: 0.5rem;
+        color: #34d399;
+        font-size: 0.8125rem;
+        cursor: pointer;
+      }
+      .pagination button:hover:not(:disabled) { background: #2a2a30; border-color: #34d399; }
+      .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pagination span { color: #94a3b8; font-size: 0.8125rem; }
+      @media (max-width: 900px) {
+        body { display: block; height: auto; overflow: auto; }
+        .site-sidebar {
+          position: static;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid #1e1e24;
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.35rem 0.45rem;
+        }
+        .site-sidebar .logo { flex: 1 0 100%; padding: 0 0 0.5rem; margin-bottom: 0.25rem; }
+        .site-sidebar a, .site-sidebar .nav-item { width: auto; padding: 0.45rem 0.65rem; font-size: 0.8125rem; }
+        .site-sidebar .sidebar-disclaimer, .site-sidebar .sidebar-version {
+          flex: 1 0 100%;
+          margin-top: 0.35rem;
+          padding: 0.35rem 0 0;
+        }
+        .site-main { margin-left: 0; min-height: auto; }
+        .page-title, main, footer { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        .card-header-row { flex-wrap: wrap; align-items: flex-start; }
+        .card-header-row .panel-title-icon { width: 1.5rem; height: 1.5rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="treasury.html">Treasury</a>
+      <a href="sabtc.html" class="active">SABTC</a>
+      <a href="saeth.html">SAETH</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-bitcoin.html">Bitcoin</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <a href="clawstr.html">Clawstr</a>
+      <a href="bulletin.html">Bulletin</a>
+      <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
+      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <div class="disclaimer-overlay" id="disclaimer-overlay" aria-hidden="true">
+      <div class="disclaimer-modal" role="dialog" aria-labelledby="disclaimer-title">
+        <h2 id="disclaimer-title">Disclaimer</h2>
+        <p>All addresses, balances, and values displayed on this website are derived from real, live on-chain data and reflect actual mainnet Solana (and related) network state. The information and features on this site are functional and are provided for informational and experimental purposes only.</p>
+        <p>Use of this website, including any interaction with mainnet Solana or connected services, is at your sole risk and responsibility. No representation or warranty of any kind—express, implied, or statutory—is made regarding the accuracy, completeness, reliability, or fitness for a particular purpose of the content or services offered.</p>
+        <p>To the maximum extent permitted by applicable law, the operators and contributors of this site disclaim all liability for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising from or in connection with your access to or use of this website or any mainnet activity. You assume full responsibility for your own actions and any resulting outcomes.</p>
+        <p>By using this site, you acknowledge that you have read, understood, and agree to this disclaimer.</p>
+        <button type="button" class="disclaimer-close" id="disclaimer-close">Close</button>
+      </div>
+    </div>
+    <script>
+      (function() {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+      (function() {
+        var link = document.getElementById("disclaimer-link");
+        var overlay = document.getElementById("disclaimer-overlay");
+        var closeBtn = document.getElementById("disclaimer-close");
+        if (link) link.addEventListener("click", function(e) { e.preventDefault(); overlay.classList.add("show"); overlay.setAttribute("aria-hidden", "false"); });
+        function closeModal() { overlay.classList.remove("show"); overlay.setAttribute("aria-hidden", "true"); }
+        if (closeBtn) closeBtn.addEventListener("click", closeModal);
+        if (overlay) overlay.addEventListener("click", function(e) { if (e.target === overlay) closeModal(); });
+      })();
+    </script>
+    <div class="site-main">
+      <div class="page-title">
+        <div class="title-row">
+          <img src="BTC.png" alt="" class="title-logo" width="40" height="40" />
+          <h1>SABTC</h1>
+        </div>
+        <p class="tagline">Solana Agent Bitcoin — SPL treasury token and <strong>SABTC / SAUSD</strong> Orca Whirlpool.</p>
+        <p class="treasury-addr-note" id="treasury-pubkey-line">Treasury (Solana): <span id="treasury-pubkey">Loading…</span></p>
+      </div>
+      <main>
+        <section class="reserve-card" aria-labelledby="pool-heading">
+          <div class="card-header-row">
+            <h2 id="pool-heading"><img src="USDC.png" alt="" class="panel-title-icon" width="24" height="24" style="border-radius:0.35rem" /> Orca Whirlpool (SABTC / SAUSD)</h2>
+            <button type="button" class="btn" id="pool-refresh">Refresh</button>
+          </div>
+          <p class="sats-note">
+            Pool data from <a class="link-accent" href="https://api.orca.so" target="_blank" rel="noopener noreferrer">Orca API</a>
+            (<code>GET /v2/solana/pools/{address}</code>) via this site’s proxy
+            <code>/api/orca/pool/…</code>. Trade on
+            <a class="link-accent" id="orca-ui-link" href="https://www.orca.so/pools/GSpVz4P5HKzVBccAFAdfWzXc1VYhGLKvzRNQZCw4KCoJ" target="_blank" rel="noopener noreferrer">Orca</a>.
+          </p>
+          <div id="pool-loading" class="sats-note">Loading pool…</div>
+          <p class="error" id="pool-error" style="display:none;"></p>
+          <div id="pool-table-wrap" style="display:none;">
+            <table class="pool-table" id="pool-table">
+              <tbody id="pool-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="reserve-card" aria-labelledby="sabtc-token-heading">
+          <div class="card-header-row">
+            <h2 id="sabtc-token-heading"><img src="BTC.png" alt="" class="panel-title-icon" width="30" height="30" /> SABTC token</h2>
+            <button type="button" class="btn" id="token-refresh">Refresh</button>
+          </div>
+          <p class="sats-note">On-chain details from <code>SABTC_MINT_ADDRESS</code>. See also <a class="link-accent" href="treasury.html">Treasury</a> (SAUSD &amp; schedule).</p>
+          <div class="arb-token-info">
+            <div class="summary-item">
+              <span class="summary-label">SABTC token (mint)</span>
+              <span class="addr-text" id="ts-sabtc-mint-wrap"><span id="ts-sabtc-mint">—</span></span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Creator / treasury (receives supply)</span>
+              <span class="addr-text" id="ts-sabtc-creator-wrap"><span id="ts-sabtc-creator">—</span></span>
+            </div>
+          </div>
+          <div class="arb-summary">
+            <div class="summary-item">
+              <span class="summary-label">Symbol</span>
+              <span class="balance-main" id="ts-sabtc-symbol">SABTC</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Decimals</span>
+              <span class="balance-main" id="ts-sabtc-decimals">9</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Recorded supply (smallest units)</span>
+              <span class="balance-main" id="ts-sabtc-supply">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Description</span>
+              <span class="balance-main" style="font-size:0.9375rem;font-weight:500;color:#cbd5e1;" id="ts-sabtc-desc">—</span>
+            </div>
+          </div>
+          <p class="sats-note" id="ts-sabtc-api-msg" style="display:none;"></p>
+          <div class="tx-table-wrap">
+            <p class="sats-note" style="margin-bottom:0.5rem;">SABTC transactions (mint and transfers; most recent first)</p>
+            <div id="ts-sabtc-tx-loading" class="loading">Loading…</div>
+            <table class="tx-table" id="ts-sabtc-tx-table" style="display:none;">
+              <thead><tr><th>Transaction</th><th>Date</th></tr></thead>
+              <tbody id="ts-sabtc-tx-body"></tbody>
+            </table>
+            <div class="pagination" id="ts-sabtc-pagination" style="display:none;"></div>
+          </div>
+        </section>
+
+        <div class="design-content">
+          <h3>About this page</h3>
+          <p>
+            <strong>SABTC</strong> is a Solana SPL mint (not native BTC). The Whirlpool above pairs it with <strong>SAUSD</strong> when Orca indexes the pool; until then the API may return “Whirlpool not found” even though the on-chain pool and
+            <a class="link-accent" id="orca-ui-link-2" href="https://www.orca.so/pools/GSpVz4P5HKzVBccAFAdfWzXc1VYhGLKvzRNQZCw4KCoJ" target="_blank" rel="noopener noreferrer">Orca UI</a> work.
+          </p>
+        </div>
+      </main>
+      <footer style="width:100%; max-width:52rem;">
+        <a href="index.html">Solana Agent</a> · SABTC
+      </footer>
+    </div>
+
+    <script src="pool-fee-format.js"></script>
+    <script>
+      const API = "/api";
+      const SOLANA_EXPLORER = "https://explorer.solana.com";
+      const SOLSCAN_TX = "https://solscan.io/tx";
+      const ROWS_PER_PAGE = 10;
+      const ORCA_POOL = "GSpVz4P5HKzVBccAFAdfWzXc1VYhGLKvzRNQZCw4KCoJ";
+      const ORCA_UI = "https://www.orca.so/pools/" + ORCA_POOL;
+      /** Defaults match api-server.cjs; overridden by /api/treasury-token/.../info when pool loads. */
+      const DEFAULT_SAUSD_MINT = "CK9PodBifHymLBGeZujExFnpoLCsYxAw7t8c8LsDKLxG";
+      const DEFAULT_SABTC_MINT = "2kR1UKhrXq6Hef6EukLyzdD5ahcezRqwURKdtCJx2Ucy";
+
+      const txState = { list: [], page: 1 };
+
+      function escapeHtml(s) {
+        const div = document.createElement("div");
+        div.textContent = s == null ? "" : String(s);
+        return div.innerHTML;
+      }
+
+      function linkAddr(addr) {
+        if (!addr || addr.length < 32) return "—";
+        const a = document.createElement("a");
+        a.href = SOLANA_EXPLORER + "/address/" + encodeURIComponent(addr);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = addr;
+        return a.outerHTML;
+      }
+
+      function row(label, valueHtml) {
+        return "<tr><th>" + escapeHtml(label) + "</th><td class=\"num\">" + valueHtml + "</td></tr>";
+      }
+
+      function poolSlotLabel(slot, mintAddr, sym, sausdMint, sabtcMint) {
+        var m = String(mintAddr || "").trim();
+        if (m === sausdMint) return "Token " + slot + " (SAUSD)";
+        if (m === sabtcMint) return "Token " + slot + " (SABTC)";
+        return "Token " + slot + " (" + (sym || "?") + ")";
+      }
+
+      /** Whirlpool `price` is ~token B per 1 token A. Assumes 1 SAUSD = $1 USD. */
+      function impliedUsdPerOneSabtc(d, sausdMint) {
+        var mintA = String(d.tokenMintA || (d.tokenA && d.tokenA.address) || "").trim();
+        var mintB = String(d.tokenMintB || (d.tokenB && d.tokenB.address) || "").trim();
+        var sm = String(sausdMint || "").trim();
+        if (!sm || d.price == null) return null;
+        var pr = Number(d.price);
+        if (!Number.isFinite(pr) || pr <= 0) return null;
+        var aIs = mintA === sm;
+        var bIs = mintB === sm;
+        if (bIs && !aIs) return pr;
+        if (aIs && !bIs) return 1 / pr;
+        return null;
+      }
+
+      function formatUsdCommas(n) {
+        if (!Number.isFinite(n)) return "—";
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
+        }).format(n);
+      }
+
+      function displayWhirlpoolSwapFee(d) {
+        if (d.swapFeePercentDisplay != null && String(d.swapFeePercentDisplay).trim() !== "") {
+          return String(d.swapFeePercentDisplay);
+        }
+        if (typeof SolanaAgentWhirlpoolFee !== "undefined" && SolanaAgentWhirlpoolFee.formatSwapFeePercent) {
+          return SolanaAgentWhirlpoolFee.formatSwapFeePercent(d.feeRate);
+        }
+        const n = Number(d.feeRate);
+        if (!Number.isFinite(n) || n < 0) return "—";
+        return ((n / 1_000_000) * 100).toFixed(4) + "%";
+      }
+
+      function uiFromRaw(raw, decimals) {
+        const dec = Number(decimals);
+        const r = BigInt(String(raw == null ? "0" : raw).split(".")[0] || "0");
+        if (!Number.isFinite(dec) || dec < 0 || dec > 18) return String(raw);
+        const neg = r < 0n;
+        const x = neg ? -r : r;
+        const whole = x / BigInt(10) ** BigInt(dec);
+        const frac = x % BigInt(10) ** BigInt(dec);
+        let fs = frac.toString().padStart(dec, "0").replace(/0+$/, "");
+        if (fs.length) fs = "." + fs;
+        return (neg ? "-" : "") + whole.toString() + fs;
+      }
+
+      async function loadTreasuryPubkey() {
+        const res = await fetch(API + "/explorer/treasury");
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.treasury_address || null;
+      }
+
+      async function loadPool() {
+        const loading = document.getElementById("pool-loading");
+        const errEl = document.getElementById("pool-error");
+        const wrap = document.getElementById("pool-table-wrap");
+        const tbody = document.getElementById("pool-tbody");
+        const btn = document.getElementById("pool-refresh");
+        if (btn) { btn.disabled = true; btn.textContent = "…"; }
+        if (loading) loading.style.display = "block";
+        if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+        if (wrap) wrap.style.display = "none";
+
+        try {
+          const [res, siRes, biRes] = await Promise.all([
+            fetch(API + "/orca/pool/" + encodeURIComponent(ORCA_POOL)),
+            fetch(API + "/treasury-token/sausd/info"),
+            fetch(API + "/treasury-token/sabtc/info"),
+          ]);
+          const text = await res.text();
+          var si = null;
+          var bi = null;
+          try {
+            if (siRes.ok) si = await siRes.json();
+          } catch (_) {}
+          try {
+            if (biRes.ok) bi = await biRes.json();
+          } catch (_) {}
+          var SAUSD_MINT = (si && String(si.mint_address || "").trim()) || DEFAULT_SAUSD_MINT;
+          var SABTC_MINT = (bi && String(bi.mint_address || "").trim()) || DEFAULT_SABTC_MINT;
+
+          let json;
+          try {
+            json = JSON.parse(text);
+          } catch (e) {
+            if (loading) loading.style.display = "none";
+            if (errEl) {
+              errEl.style.display = "block";
+              errEl.textContent = text.trim().slice(0, 400) || "Non-JSON response from API.";
+            }
+            return;
+          }
+
+          if (!json || !json.data) {
+            const msg =
+              (json && json.message) ||
+              (json && json.body_preview) ||
+              (json && json.error && json.error !== "orca_non_json" && String(json.error)) ||
+              (json && json.error === "orca_non_json"
+                ? "Orca’s API did not return pool JSON (often 404 “Whirlpool not found” until the pool is indexed). Use the Orca link above to trade."
+                : null) ||
+              "Pool not returned by Orca API (new pools can lag indexing). Use Orca UI if the pool trades but API is empty.";
+            if (loading) loading.style.display = "none";
+            if (errEl) {
+              errEl.style.display = "block";
+              errEl.textContent = String(msg);
+            }
+            return;
+          }
+
+          const d = json.data;
+          const ta = d.tokenA || {};
+          const tb = d.tokenB || {};
+          const symA = ta.symbol || "A";
+          const symB = tb.symbol || "B";
+          const mintA = String(d.tokenMintA || ta.address || "").trim();
+          const mintB = String(d.tokenMintB || tb.address || "").trim();
+          const balA = d.tokenBalanceA != null ? uiFromRaw(d.tokenBalanceA, ta.decimals) : "—";
+          const balB = d.tokenBalanceB != null ? uiFromRaw(d.tokenBalanceB, tb.decimals) : "—";
+
+          let html = "";
+          html += row("Pool address", linkAddr(d.address || ORCA_POOL));
+          html += row(poolSlotLabel("A", mintA, symA, SAUSD_MINT, SABTC_MINT), escapeHtml(balA) + " <span style=\"color:#64748b\">raw vault balance</span>");
+          html += row("Mint A", linkAddr(mintA || ta.address));
+          html += row(poolSlotLabel("B", mintB, symB, SAUSD_MINT, SABTC_MINT), escapeHtml(balB) + " <span style=\"color:#64748b\">raw vault balance</span>");
+          html += row("Mint B", linkAddr(mintB || tb.address));
+          var usdSabtc = impliedUsdPerOneSabtc(d, SAUSD_MINT);
+          if (usdSabtc != null) {
+            html += row(
+              "Price (1 SABTC ≈)",
+              "<strong>" +
+                formatUsdCommas(usdSabtc) +
+                "</strong> <span style=\"color:#64748b;font-weight:400\">· 1 SAUSD = $1 face value</span>"
+            );
+          } else if (d.price != null) {
+            html += row("Price (pool ratio, B per 1 A)", escapeHtml(String(d.price)));
+          }
+          if (d.tvlUsdc != null) html += row("TVL (USDC)", escapeHtml(String(d.tvlUsdc)));
+          html += row("Swap fee (approx.)", escapeHtml(displayWhirlpoolSwapFee(d)));
+          if (d.protocolFeeRate != null) html += row("Protocol fee rate (raw)", escapeHtml(String(d.protocolFeeRate)));
+          if (d.tickSpacing != null) html += row("Tick spacing", escapeHtml(String(d.tickSpacing)));
+          if (d.tickCurrentIndex != null) html += row("Current tick", escapeHtml(String(d.tickCurrentIndex)));
+          if (d.liquidity != null) html += row("Liquidity (raw)", escapeHtml(String(d.liquidity)));
+          if (d.poolType) html += row("Pool type", escapeHtml(String(d.poolType)));
+          if (d.updatedAt) html += row("Updated (Orca)", escapeHtml(String(d.updatedAt)));
+          if (d.stats && d.stats["24h"] && d.stats["24h"].volume != null) {
+            html += row("24h volume", escapeHtml(String(d.stats["24h"].volume)));
+          }
+          if (d.poolDataSource === "solana_rpc") {
+            html += row(
+              "Pool data source",
+              "Solana RPC (Whirlpool on-chain). Orca’s indexer did not return this pool; vault balances and fees are live from the chain."
+            );
+          }
+
+          tbody.innerHTML = html;
+          if (loading) loading.style.display = "none";
+          if (wrap) wrap.style.display = "block";
+        } catch (e) {
+          if (loading) loading.style.display = "none";
+          if (errEl) {
+            errEl.style.display = "block";
+            errEl.textContent = e.message || "Could not load pool.";
+          }
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+        }
+      }
+
+      async function loadTokenInfo() {
+        const res = await fetch(API + "/treasury-token/sabtc/info");
+        if (!res.ok) return null;
+        return res.json();
+      }
+
+      async function loadTokenTransactions() {
+        const res = await fetch(API + "/treasury-token/sabtc/transactions");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.transactions || [];
+      }
+
+      function formatDate(ts) {
+        if (ts == null) return "—";
+        return new Date(ts * 1000).toLocaleString();
+      }
+
+      function paginate(arr, page) {
+        const start = (page - 1) * ROWS_PER_PAGE;
+        return arr.slice(start, start + ROWS_PER_PAGE);
+      }
+
+      function renderPagination(currentPage, totalPages, onPage) {
+        const el = document.getElementById("ts-sabtc-pagination");
+        if (!el || totalPages <= 1) {
+          if (el) el.style.display = "none";
+          return;
+        }
+        el.style.display = "flex";
+        el.innerHTML = "";
+        const prev = document.createElement("button");
+        prev.textContent = "Previous";
+        prev.disabled = currentPage <= 1;
+        prev.onclick = function () { onPage(currentPage - 1); };
+        el.appendChild(prev);
+        const span = document.createElement("span");
+        span.textContent = "Page " + currentPage + " of " + totalPages;
+        el.appendChild(span);
+        const next = document.createElement("button");
+        next.textContent = "Next";
+        next.disabled = currentPage >= totalPages;
+        next.onclick = function () { onPage(currentPage + 1); };
+        el.appendChild(next);
+      }
+
+      function renderTxTable() {
+        const body = document.getElementById("ts-sabtc-tx-body");
+        const table = document.getElementById("ts-sabtc-tx-table");
+        const loading = document.getElementById("ts-sabtc-tx-loading");
+        const totalPages = Math.max(1, Math.ceil(txState.list.length / ROWS_PER_PAGE));
+        const page = Math.min(txState.page, totalPages);
+        const rows = paginate(txState.list, page);
+
+        loading.style.display = "none";
+        if (txState.list.length === 0) {
+          body.innerHTML = "<tr><td colspan=\"2\">No SABTC transactions</td></tr>";
+        } else {
+          body.innerHTML = rows
+            .map(function (tx) {
+              const short = (tx.signature || "").slice(0, 16) + "…";
+              const link = tx.signature
+                ? "<a href=\"" + SOLSCAN_TX + "/" + encodeURIComponent(tx.signature) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + escapeHtml(short) + "</a>"
+                : escapeHtml(short);
+              return "<tr><td>" + link + "</td><td>" + formatDate(tx.blockTime) + "</td></tr>";
+            })
+            .join("");
+          renderPagination(page, totalPages, function (p) {
+            txState.page = p;
+            renderTxTable();
+          });
+        }
+        table.style.display = "table";
+      }
+
+      async function refreshToken() {
+        const btn = document.getElementById("token-refresh");
+        const msg = document.getElementById("ts-sabtc-api-msg");
+        const txLoading = document.getElementById("ts-sabtc-tx-loading");
+        const txTable = document.getElementById("ts-sabtc-tx-table");
+        if (btn) { btn.disabled = true; btn.textContent = "…"; }
+        if (txLoading) txLoading.style.display = "block";
+        if (txTable) txTable.style.display = "none";
+
+        try {
+          const [info, txs] = await Promise.all([loadTokenInfo(), loadTokenTransactions()]);
+          txState.list = txs || [];
+          txState.page = 1;
+          renderTxTable();
+
+          const mint = info && info.mint_address ? String(info.mint_address).trim() : "";
+          const creator = info && info.creator_address ? String(info.creator_address).trim() : "";
+          const supplyRaw = info && info.supply != null ? String(info.supply).replace(/,/g, "") : null;
+          const decimals = info && info.decimals != null ? info.decimals : 9;
+          const desc = (info && info.token_name) ? info.token_name : "—";
+          const sym = (info && info.token_symbol) ? info.token_symbol : "SABTC";
+
+          document.getElementById("ts-sabtc-mint-wrap").innerHTML = mint ? linkAddr(mint) : "—";
+          document.getElementById("ts-sabtc-creator-wrap").innerHTML = creator ? linkAddr(creator) : "—";
+          document.getElementById("ts-sabtc-symbol").textContent = sym;
+          document.getElementById("ts-sabtc-decimals").textContent = String(decimals);
+          document.getElementById("ts-sabtc-supply").textContent = supplyRaw ? Number(supplyRaw).toLocaleString() : "—";
+          document.getElementById("ts-sabtc-desc").textContent = desc;
+
+          const supplyEl = document.getElementById("ts-sabtc-supply");
+          const supplyLabelEl = supplyEl && supplyEl.closest(".summary-item") && supplyEl.closest(".summary-item").querySelector(".summary-label");
+          if (supplyLabelEl) {
+            supplyLabelEl.textContent = info && info.supply != null ? "Supply (on-chain, smallest units)" : "Recorded supply (smallest units)";
+          }
+
+          msg.style.display = "none";
+          if (!mint) {
+            msg.style.display = "block";
+            msg.className = "sats-note";
+            msg.textContent = "Mint not configured on the server.";
+          } else if (info && info.error) {
+            msg.style.display = "block";
+            msg.className = "sats-note";
+            msg.textContent = "Mint from config; supply could not be fetched: " + (info.error || "");
+          }
+        } catch (e) {
+          msg.style.display = "block";
+          msg.className = "error";
+          msg.textContent = "Could not load SABTC info.";
+          txState.list = [];
+          renderTxTable();
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+        }
+      }
+
+      async function initTreasuryLine() {
+        const wrap = document.getElementById("treasury-pubkey");
+        try {
+          const pk = await loadTreasuryPubkey();
+          if (pk) wrap.innerHTML = linkAddr(pk);
+          else wrap.textContent = "—";
+        } catch (e) {
+          wrap.textContent = "—";
+        }
+      }
+
+      document.getElementById("pool-refresh").addEventListener("click", loadPool);
+      document.getElementById("token-refresh").addEventListener("click", refreshToken);
+
+      initTreasuryLine();
+      loadPool();
+      refreshToken();
+    </script>
+  </body>
+</html>

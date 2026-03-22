@@ -10,6 +10,7 @@ const bitcoin = require("bitcoinjs-lib");
 const bitcoinMessage = require("bitcoinjs-message");
 const nacl = require("tweetnacl");
 const { receiveStableConfirmAndReward } = require("./lib/asry/receive-confirm-and-reward.cjs");
+const { fetchWhirlpoolPoolFromRpc } = require("./lib/orca-whirlpool-onchain.cjs");
 const { tryHandleClawstr } = require("./clawstr/mount.cjs");
 const { tryHandleBulletin } = require("./clawstr/bulletin-mount.cjs");
 
@@ -28,6 +29,59 @@ function sendError(res, status, errorCode, message, action) {
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 const ABSR_MINT_ADDRESS = (process.env.ABSR_MINT_ADDRESS || "").trim() || "BvtyqwRSgrKjX3jUfR7Sq5XmuVKrPEcSTDbLmTCstP1E";
 const ASRY_MINT_ADDRESS = (process.env.ASRY_MINT_ADDRESS || "").trim() || "3xKw9DpMZSmVTEpEvTwMd2Qm4T4FGAyUDmmkZEroBzZw";
+/** Treasury reserve SPL mints (mainnet); override with SAUSD_MINT_ADDRESS / SABTC_MINT_ADDRESS / SAETH_MINT_ADDRESS. */
+const SAUSD_MINT_ADDRESS = (process.env.SAUSD_MINT_ADDRESS || "").trim() || "CK9PodBifHymLBGeZujExFnpoLCsYxAw7t8c8LsDKLxG";
+const SABTC_MINT_ADDRESS = (process.env.SABTC_MINT_ADDRESS || "").trim() || "2kR1UKhrXq6Hef6EukLyzdD5ahcezRqwURKdtCJx2Ucy";
+const SAETH_MINT_ADDRESS = (process.env.SAETH_MINT_ADDRESS || "").trim() || "AhyZRrDrN3apDzZqdRHtpxWmnqYDdL8VnJ66ip1KbiDS";
+/** Default SABTC/SAUSD Whirlpool for site links; override with SABTC_ORCA_POOL_ADDRESS. */
+const SABTC_ORCA_POOL_ADDRESS =
+  (process.env.SABTC_ORCA_POOL_ADDRESS || "").trim() || "GSpVz4P5HKzVBccAFAdfWzXc1VYhGLKvzRNQZCw4KCoJ";
+/** Default SAETH/SAUSD Whirlpool (matches saeth.html); override with SAETH_SAUSD_ORCA_POOL_ADDRESS. */
+const SAETH_SAUSD_ORCA_POOL_ADDRESS =
+  (process.env.SAETH_SAUSD_ORCA_POOL_ADDRESS || "").trim() || "BzwjX8hwMbkVdhGu2w9qTtokr5ExqSDSw9bNMxdkExRS";
+const ORCA_POOLS_API = "https://api.orca.so/v2/solana/pools";
+const MPL_TOKEN_METADATA = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
+function isLikelySolanaPubkey(s) {
+  const t = String(s || "").trim();
+  return /^[1-9A-HJ-NP-Za-km-z]{32,48}$/.test(t);
+}
+
+const TREASURY_TOKEN_MINT_BY_ID = {
+  sausd: SAUSD_MINT_ADDRESS,
+  sabtc: SABTC_MINT_ADDRESS,
+  saeth: SAETH_MINT_ADDRESS,
+};
+
+function decodeMplTokenMetadataNameSymbol(data) {
+  if (!data || !Buffer.isBuffer(data) || data.length < 100) return { name: null, symbol: null };
+  try {
+    let i = 1 + 32 + 32;
+    const readStr = () => {
+      const len = data.readUInt32LE(i);
+      i += 4;
+      const s = data.slice(i, i + len).toString("utf8").replace(/\0/g, "").trim();
+      i += len;
+      return s;
+    };
+    const name = readStr();
+    const symbol = readStr();
+    return { name, symbol };
+  } catch (_) {
+    return { name: null, symbol: null };
+  }
+}
+
+async function fetchMplTokenMetadataNameSymbol(connection, mintAddress) {
+  const mint = new PublicKey(mintAddress);
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("metadata"), MPL_TOKEN_METADATA.toBuffer(), mint.toBuffer()],
+    MPL_TOKEN_METADATA
+  );
+  const acc = await connection.getAccountInfo(pda);
+  if (!acc || !acc.data) return { name: null, symbol: null };
+  return decodeMplTokenMetadataNameSymbol(Buffer.from(acc.data));
+}
 const PROOF_MESSAGE_PREFIX = "Solana Agent proof of reserves";
 const LIFI_BASE = "https://li.quest/v1";
 const LIFI_FROM_CHAIN = "1151111081099710";
@@ -840,6 +894,177 @@ const server = http.createServer(async (req, res) => {
       }
     })();
     return;
+  }
+
+  const orcaPoolMatch = path.match(/^\/api\/orca\/pool\/([^/]+)$/);
+  if (orcaPoolMatch && req.method === "GET") {
+    const poolAddr = String(orcaPoolMatch[1] || "").trim();
+    if (!isLikelySolanaPubkey(poolAddr)) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "Invalid pool address" }));
+      return;
+    }
+    (async () => {
+      const tryWhirlpoolRpc = async () => {
+        try {
+          const conn = new Connection(SOLANA_RPC);
+          const out = await fetchWhirlpoolPoolFromRpc(conn, poolAddr);
+          if (out.ok) return { status: 200, json: { data: out.data } };
+        } catch (_) {}
+        return null;
+      };
+
+      const sendNonJsonOrca = (r, text) => {
+        const plain = text.trim().slice(0, 500);
+        res.writeHead(r.ok ? 502 : r.status || 502);
+        res.end(
+          JSON.stringify({
+            error: "orca_non_json",
+            message: plain || "Orca API returned non-JSON",
+            status: r.status,
+            body_preview: text.slice(0, 500),
+          })
+        );
+      };
+
+      try {
+        const orcaUrl = `${ORCA_POOLS_API}/${encodeURIComponent(poolAddr)}`;
+        const r = await fetch(orcaUrl, { headers: { Accept: "application/json" } });
+        const text = await r.text();
+        let parsed = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch (_) {
+          const rpc = await tryWhirlpoolRpc();
+          if (rpc) {
+            res.writeHead(200);
+            res.end(JSON.stringify(rpc.json));
+            return;
+          }
+          sendNonJsonOrca(r, text);
+          return;
+        }
+
+        const hasOrcaPoolData =
+          parsed &&
+          parsed.data &&
+          typeof parsed.data === "object" &&
+          (parsed.data.address || parsed.data.tokenMintA);
+
+        if (hasOrcaPoolData) {
+          res.writeHead(r.status);
+          res.end(JSON.stringify(parsed));
+          return;
+        }
+
+        const rpc = await tryWhirlpoolRpc();
+        if (rpc) {
+          res.writeHead(200);
+          res.end(JSON.stringify(rpc.json));
+          return;
+        }
+
+        res.writeHead(r.status);
+        res.end(JSON.stringify(parsed));
+      } catch (e) {
+        const rpc = await tryWhirlpoolRpc();
+        if (rpc) {
+          res.writeHead(200);
+          res.end(JSON.stringify(rpc.json));
+          return;
+        }
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: "orca_fetch_failed", message: e.message || String(e) }));
+      }
+    })();
+    return;
+  }
+
+  if (path === "/api/orca/pool-default" && req.method === "GET") {
+    res.writeHead(307, { Location: `/api/orca/pool/${encodeURIComponent(SABTC_ORCA_POOL_ADDRESS)}` });
+    res.end();
+    return;
+  }
+
+  if (path === "/api/orca/pool-saeth-sausd-default" && req.method === "GET") {
+    res.writeHead(307, { Location: `/api/orca/pool/${encodeURIComponent(SAETH_SAUSD_ORCA_POOL_ADDRESS)}` });
+    res.end();
+    return;
+  }
+
+  const treasuryTokenMatch = path.match(/^\/api\/treasury-token\/([^/]+)\/(info|transactions)$/);
+  if (treasuryTokenMatch && req.method === "GET") {
+    const tokenId = String(treasuryTokenMatch[1] || "").toLowerCase();
+    const sub = treasuryTokenMatch[2];
+    const mintAddress = TREASURY_TOKEN_MINT_BY_ID[tokenId];
+    if (!mintAddress) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "Unknown treasury token id", valid_ids: ["sausd", "sabtc", "saeth"] }));
+      return;
+    }
+    if (sub === "info") {
+      (async function () {
+        try {
+          const conn = new Connection(SOLANA_RPC);
+          const mintPk = new PublicKey(mintAddress);
+          const [mintInfo, meta] = await Promise.all([
+            getMint(conn, mintPk),
+            fetchMplTokenMetadataNameSymbol(conn, mintAddress).catch(() => ({ name: null, symbol: null })),
+          ]);
+          res.writeHead(200);
+          res.end(
+            JSON.stringify({
+              token_id: tokenId,
+              mint_address: mintAddress,
+              supply: mintInfo && mintInfo.supply != null ? String(mintInfo.supply) : null,
+              decimals: mintInfo && mintInfo.decimals != null ? mintInfo.decimals : 9,
+              creator_address: TREASURY_SOLANA_ADDRESS || null,
+              token_name: meta && meta.name ? meta.name : null,
+              token_symbol: meta && meta.symbol ? meta.symbol : null,
+            })
+          );
+        } catch (e) {
+          let meta = { name: null, symbol: null };
+          try {
+            const conn = new Connection(SOLANA_RPC);
+            meta = await fetchMplTokenMetadataNameSymbol(conn, mintAddress);
+          } catch (_) {}
+          res.writeHead(200);
+          res.end(
+            JSON.stringify({
+              token_id: tokenId,
+              mint_address: mintAddress,
+              supply: null,
+              decimals: 9,
+              creator_address: TREASURY_SOLANA_ADDRESS || null,
+              token_name: meta.name || null,
+              token_symbol: meta.symbol || null,
+              error: e.message || "Failed to fetch on-chain mint",
+            })
+          );
+        }
+      })();
+      return;
+    }
+    if (sub === "transactions") {
+      (async function () {
+        try {
+          const conn = new Connection(SOLANA_RPC);
+          const sigs = await conn.getSignaturesForAddress(new PublicKey(mintAddress), { limit: 50 });
+          const transactions = sigs.map((s) => ({
+            signature: s.signature,
+            blockTime: s.blockTime,
+            err: s.err ?? null,
+          }));
+          res.writeHead(200);
+          res.end(JSON.stringify({ token_id: tokenId, transactions }));
+        } catch (e) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ token_id: tokenId, transactions: [] }));
+        }
+      })();
+      return;
+    }
   }
 
   res.writeHead(404);

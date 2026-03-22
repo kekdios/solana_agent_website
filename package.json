@@ -19,6 +19,7 @@
     "treasury:receive": "node scripts/receive-stable-to-treasury.cjs",
     "treasury:receive-reward": "node scripts/receive-confirm-and-reward.cjs",
     "mint:token": "node scripts/mint-token-human.cjs",
+    "treasury:mint-scheduled": "node scripts/mint-treasury-sabtc-saeth-scheduled.cjs",
     "mcp": "node mcp-server.cjs",
     "clawstr:generate-account": "node clawstr/scripts/generate-account.cjs",
     "clawstr:spike-publish": "node clawstr/scripts/spike-publish.cjs"

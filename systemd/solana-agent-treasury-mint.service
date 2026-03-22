@@ -1,0 +1,15 @@
+[Unit]
+Description=Mint SABTC and SAETH to Solana Agent treasury (scheduled)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/solana_agent
+EnvironmentFile=-/etc/solana-agent-website/secrets
+ExecStart=/usr/bin/node /var/www/solana_agent/scripts/mint-treasury-sabtc-saeth-scheduled.cjs
+StandardOutput=journal
+StandardError=journal
+
+# Hardening (optional; drop if node path differs)
+NoNewPrivileges=true

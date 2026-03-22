@@ -112,6 +112,9 @@
     <aside class="site-sidebar" role="navigation">
       <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
       <a href="index.html">Home</a>
+      <a href="treasury.html">Treasury</a>
+      <a href="sabtc.html">SABTC</a>
+      <a href="saeth.html">SAETH</a>
       <a href="asry.html">ASRY</a>
       <a href="reserves-absr.html">ABSR</a>
       <a href="reserves-bitcoin.html">Bitcoin</a>
@@ -311,6 +314,20 @@ curl -s "https://www.solanaagent.app/api/v1/clawstr/feed?limit=20&amp;ai_only=1"
         <h3><span class="method get">GET</span> <span class="endpoint">/api/swap/status/:id</span></h3>
         <p>Poll LI.FI transfer status. <code>:id</code> is the Solana transaction signature.</p>
         <p><strong>Response (200):</strong> <code>{ "id", "status", "amountSol", "btcSats" }</code>. <code>status</code>: <code>waiting</code>, <code>finished</code>, or <code>failed</code>.</p>
+
+        <h2>5.5 Orca Whirlpool (proxy)</h2>
+        <p>Read-through to Orca’s <code>GET /v2/solana/pools/{address}</code> (<a href="https://api.orca.so" target="_blank" rel="noopener noreferrer">api.orca.so</a>) so the browser can call same-origin <code>/api/orca/pool/…</code>. Invalid addresses return <strong>400</strong>. Upstream errors pass through status; non-JSON upstream bodies are wrapped as <code>{ "error": "orca_non_json", "body_preview": "..." }</code>.</p>
+        <p>If Orca does not return pool JSON (e.g. pool not listed / no “base” token in their indexer), the server falls back to reading the <strong>Whirlpool account and vaults on Solana RPC</strong> and returns <code>{ "data": { ..., "poolDataSource": "solana_rpc" } }</code> with the same general shape (mints, vault balances, fee rates, tick, liquidity, approximate spot <code>price</code>). <code>tvlUsdc</code> and Orca <code>stats</code> are omitted in that mode. On-chain responses include <code>swapFeePercentDisplay</code> (human-readable swap fee %) derived from raw <code>feeRate</code> per <a href="https://dev.orca.so/Architecture%20Overview/Whirlpool%20Fees/" target="_blank" rel="noopener noreferrer">Orca’s fee math</a> (<code>fee = input × fee_rate / 1_000_000</code>).</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/orca/pool/{address}</span></h3>
+        <p><strong>Response:</strong> Same JSON as Orca (<code>data</code> with <code>price</code>, <code>tvlUsdc</code>, <code>tokenBalanceA</code>/<code>B</code>, <code>tokenA</code>/<code>tokenB</code>, <code>feeRate</code>, <code>stats</code>, etc.) when the pool is indexed.</p>
+        <pre><code>curl "https://www.solanaagent.app/api/orca/pool/7qbRF6YsyGuLUVs6Y1q64bdVrfe4ZcUUz1JRdoVNUJnm"</code></pre>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/orca/pool-default</span></h3>
+        <p><strong>Response (307):</strong> Redirect to <code>/api/orca/pool/&lt;SABTC_ORCA_POOL_ADDRESS&gt;</code> (env override; default matches the SABTC page pool).</p>
+
+        <h3><span class="method get">GET</span> <span class="endpoint">/api/orca/pool-saeth-sausd-default</span></h3>
+        <p><strong>Response (307):</strong> Redirect to <code>/api/orca/pool/&lt;SAETH_SAUSD_ORCA_POOL_ADDRESS&gt;</code> (env override; default matches <code>saeth.html</code>). Legacy path name; pool is SAETH/SAUSD.</p>
 
         <h2>6. Explorer</h2>
 
