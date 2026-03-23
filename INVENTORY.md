@@ -1,76 +1,37 @@
-# Project inventory and server comparison
+# Project inventory
 
-**Server (source of truth):** `178.128.27.125` → `/var/www/solana_agent`  
-**Local project root:** `website/` (this directory)
+**Authoritative deploy list:** `deploy-website-to-droplet.sh` — it defines exactly what is copied to `/var/www/solana_agent` on the droplet. This file is not a live byte inventory of the server.
 
----
+## Entry points
 
-## 1. Local project files (full inventory)
+| Component | Path / command |
+|-----------|----------------|
+| HTTP API | `api-server.cjs` — `npm start` (port `API_PORT` or **3001**) |
+| MCP server | `mcp-server.cjs` — `npm run mcp` (stdio; **swap + reserves** tools only) |
+| Clawstr HTTP | `clawstr/mount.cjs` (mounted from `api-server.cjs`) |
+| Bulletin HTTP | `clawstr/bulletin-mount.cjs` (mounted from `api-server.cjs`) |
+| Deploy + API restart | `./deploy-website-to-droplet.sh` (expects `.env` with `DROPLET_IP`, `DROPLET_SSH_PASSWORD`) |
+| Smoke tests | `npm test` → `test-api-no-tx.js` + `test-pages.js` |
 
-All files under `website/` excluding `node_modules/` and `.git/`:
+## Deploy notes
 
-| Path | Size (bytes) | Deployed by script? |
-|------|--------------|---------------------|
-| `api-server.cjs` | 52163 | Yes |
-| `api.html` | 16768 | Yes |
-| `openapi.json` | — | Yes |
-| `mcp-server.cjs` | — | No (run locally / agent env) |
-| `deploy-website-to-droplet.sh` | 4175 | No |
-| `icon_dock.png` | 27357 | Yes |
-| `index.html` | — | Yes |
-| `asry.html` | — | Yes |
-| `loading-animation.gif` | 229697 | Yes |
-| `logo_btc_nb.png` | 101106 | Yes |
-| `package-lock.json` | 77390 | No |
-| `package.json` | 464 | Yes |
-| `proof-of-reserves.html` | 67027 | Yes |
-| `scripts/generate-btc-key.sh` | 642 | No |
-| `scripts/generate-solana-key.sh` | 643 | No |
-| `solanaagent_rec.png` | 52017 | Yes |
-| `test-api-no-tx.js` | 5697 | No |
-| `test-pages.js` | — | No |
+- **`api-server.cjs`**, `package.json`, and `package-lock.json` go to the **site root** (`/var/www/solana_agent/`), not under `data/`.
+- **`data/.gitkeep`** is copied to `/var/www/solana_agent/data/`; visitor log is **`data/site-visitors.jsonl`** (gitignored).
+- **`scripts/ensure-analytics-data-dir.sh`** runs on deploy before `systemctl restart solana-agent-website-api`.
+- **`scp -r clawstr/`** replaces the entire remote **`clawstr/`** tree, including **`bulletin.sqlite`**, **`bulletin.sqlite-wal`**, etc. Avoid deploying from a dev machine whose local bulletin DB would overwrite production unintentionally.
 
-**Total: 21+ files** (exclude `node_modules/` and `.git/`). `.DS_Store` and `.env` are gitignored.
+## Optional: compare with server
 
----
+`compare-and-sync-from-server.sh` — see the script’s comments for SSH usage and `PULL=1`.
 
-## 2. Files the deploy script pushes to the server
+## Documentation map
 
-From `deploy-website-to-droplet.sh` (SCP targets):
-
-**Root of `/var/www/solana_agent/`:**
-- `index.html`
-- `asry.html`
-- `proof-of-reserves.html`
-- `api.html`
-- `solanaagent_rec.png`
-- `loading-animation.gif`
-- `icon_dock.png`
-- `logo_btc_nb.png`
-- `api-server.cjs`
-- `openapi.json`
-- `package.json`
-
-**Not deployed (local-only):**
-- `deploy-website-to-droplet.sh`
-- `package-lock.json`
-- `scripts/*`
-- `test-api-no-tx.js`
-- `.DS_Store`
-
----
-
-## 3. Comparing with the server (source of truth)
-
-SSH to the server requires credentials (e.g. `.env` with `DROPLET_IP` and `DROPLET_SSH_PASSWORD`). Use the script:
-
-```bash
-./compare-and-sync-from-server.sh
-```
-
-This will:
-1. List all files on the server at `/var/www/solana_agent`
-2. Compare with the list above and report: only-on-server, only-local, and size differences
-3. Optionally **pull from server → local** so local matches the source of truth (run with `PULL=1`)
-
-See `compare-and-sync-from-server.sh` for usage.
+| Document | Role |
+|----------|------|
+| `README.md` | Run locally, deploy, features at a glance |
+| `api.html` | **Full** human-readable list of JSON HTTP routes (kept in sync with `api-server.cjs` when changing the API) |
+| `openapi.json` | **Partial** OpenAPI 3 schema (swap subset, reserves, bulletin, clawstr, analytics, ASRY claim — not every route) |
+| `clawstr/README.md` | Clawstr keys, relays, bulletin env vars, spike publish |
+| `systemd/README.md` | Treasury mint **timer** unit install |
+| `lib/asry/README.md` | Treasury receive / USDT↔USDC scripts |
+| `docs/*.md` | Architecture / product plans; may lag code — see status notes inside |

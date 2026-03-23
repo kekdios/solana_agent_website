@@ -1,7 +1,7 @@
 {
   "name": "solana-agent-website-api",
   "version": "1.0.0",
-  "description": "Proof-of-reserves API for Solana Agent website",
+  "description": "Solana Agent website HTTP API (reserves, swap, treasury, Orca proxy, Clawstr, bulletin, analytics)",
   "type": "commonjs",
   "main": "api-server.cjs",
   "scripts": {

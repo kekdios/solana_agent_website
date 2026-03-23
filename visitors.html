@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>Site visitors — Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: #0d0d0f; color: #e2e8f0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      body { display: flex; min-height: 100vh; }
+      .site-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 14rem; background: #121214; border-right: 1px solid #1e1e24; padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem; color: #94a3b8; text-decoration: none; }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; padding: 2rem 1.25rem 3rem; }
+      .wrap { max-width: 56rem; margin: 0 auto; }
+      h1 { margin: 0 0 0.45rem; font-size: 1.45rem; }
+      .sub { margin: 0 0 1rem; color: #94a3b8; font-size: 0.92rem; line-height: 1.55; }
+      .card { background: #121214; border: 1px solid #2a2a30; border-radius: 1rem; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+      .card h2 { font-size: 1rem; margin: 0 0 0.75rem; color: #e2e8f0; }
+      .btn {
+        display: inline-block; padding: 0.45rem 1rem; border-radius: 0.5rem; border: 1px solid #34d399; background: rgba(52,211,153,0.15);
+        color: #34d399; font-size: 0.875rem; cursor: pointer; text-decoration: none;
+      }
+      .btn:hover { background: rgba(52,211,153,0.25); }
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+      .stat { background: #0d0d0f; border: 1px solid #1e1e24; border-radius: 0.65rem; padding: 0.65rem 0.75rem; }
+      .stat .n { font-size: 1.35rem; font-weight: 600; color: #34d399; }
+      .stat .k { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.2rem; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+      th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid #1e1e24; vertical-align: top; }
+      th { color: #64748b; font-weight: 500; }
+      .path { word-break: break-all; color: #cbd5e1; }
+      .err { color: #f87171; font-size: 0.875rem; margin: 0.5rem 0 0; }
+      code { font-size: 0.8em; background: #0d0d0f; padding: 0.15em 0.35em; border-radius: 0.25rem; }
+      @media (max-width: 900px) {
+        body { display: block; }
+        .site-sidebar { position: static; width: 100%; border-right: none; border-bottom: 1px solid #1e1e24; flex-direction: row; flex-wrap: wrap; }
+        .site-sidebar .logo { flex: 1 0 100%; }
+        .site-main { margin-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="treasury.html">Treasury</a>
+      <a href="sabtc.html">SABTC</a>
+      <a href="saeth.html">SAETH</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-bitcoin.html">Bitcoin</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <a href="clawstr.html">Clawstr</a>
+      <a href="bulletin.html">Bulletin</a>
+      <a href="visitors.html" class="active">Visitors</a>
+    </aside>
+    <main class="site-main">
+      <div class="wrap">
+        <h1>Site visitors</h1>
+        <p class="sub">
+          Pageview totals and recent paths (browser <code>pathname</code> + referrer). IPs are stored server-side for abuse limits and shown here in redacted form. This page is public; anyone can view the same aggregates as <code>GET /api/analytics/stats</code>.
+        </p>
+        <section class="card" aria-labelledby="refresh-heading">
+          <h2 id="refresh-heading">Data</h2>
+          <button type="button" class="btn" id="analytics-load">Refresh stats</button>
+          <p id="analytics-err" class="err" style="display: none;" role="alert"></p>
+        </section>
+        <section class="card" id="analytics-summary-card" aria-live="polite">
+          <h2>Summary</h2>
+          <div class="stats-grid">
+            <div class="stat"><div class="n" id="st-total">…</div><div class="k">All time (tail)</div></div>
+            <div class="stat"><div class="n" id="st-24">…</div><div class="k">Last 24h</div></div>
+            <div class="stat"><div class="n" id="st-7">…</div><div class="k">Last 7d</div></div>
+            <div class="stat"><div class="n" id="st-ip">…</div><div class="k">Distinct IPs (24h)</div></div>
+          </div>
+        </section>
+        <section class="card" id="analytics-paths-card">
+          <h2>By path</h2>
+          <div style="overflow-x: auto;">
+            <table>
+              <thead><tr><th>Path</th><th>Views</th></tr></thead>
+              <tbody id="analytics-paths-body"><tr><td colspan="2">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card" id="analytics-recent-card">
+          <h2>Recent</h2>
+          <div style="overflow-x: auto;">
+            <table>
+              <thead><tr><th>Time (UTC)</th><th>Path</th><th>Referrer</th><th>IP</th></tr></thead>
+              <tbody id="analytics-recent-body"><tr><td colspan="4">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script src="site-analytics.js" defer></script>
+    <script>
+      (function () {
+        var err = document.getElementById("analytics-err");
+        function showErr(msg) {
+          err.style.display = msg ? "block" : "none";
+          err.textContent = msg || "";
+        }
+        function esc(s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        }
+        function load() {
+          showErr("");
+          fetch("/api/analytics/stats", { cache: "no-store", credentials: "same-origin" })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { ok: r.ok, status: r.status, body: j };
+              });
+            })
+            .then(function (x) {
+              var j = x.body;
+              if (!x.ok || !j.ok) {
+                document.getElementById("st-total").textContent = "—";
+                document.getElementById("st-24").textContent = "—";
+                document.getElementById("st-7").textContent = "—";
+                document.getElementById("st-ip").textContent = "—";
+                document.getElementById("analytics-paths-body").innerHTML = "<tr><td colspan=\"2\">—</td></tr>";
+                document.getElementById("analytics-recent-body").innerHTML = "<tr><td colspan=\"4\">—</td></tr>";
+                showErr((j && j.error) || "Request failed (" + x.status + ")");
+                return;
+              }
+              document.getElementById("st-total").textContent = j.total_pageviews != null ? j.total_pageviews : "—";
+              document.getElementById("st-24").textContent = j.pageviews_last_24h != null ? j.pageviews_last_24h : "—";
+              document.getElementById("st-7").textContent = j.pageviews_last_7d != null ? j.pageviews_last_7d : "—";
+              document.getElementById("st-ip").textContent = j.distinct_ips_last_24h != null ? j.distinct_ips_last_24h : "—";
+              var pb = document.getElementById("analytics-paths-body");
+              var rows = (j.by_path || []).map(function (r) {
+                return "<tr><td class=\"path\">" + esc(r.path) + "</td><td>" + esc(r.count) + "</td></tr>";
+              });
+              pb.innerHTML = rows.length ? rows.join("") : "<tr><td colspan=\"2\">No data yet</td></tr>";
+              var rb = document.getElementById("analytics-recent-body");
+              var rr = (j.recent || []).map(function (r) {
+                return (
+                  "<tr><td>" +
+                  esc(r.t) +
+                  "</td><td class=\"path\">" +
+                  esc(r.path) +
+                  "</td><td>" +
+                  esc(r.referrer || "—") +
+                  "</td><td>" +
+                  esc(r.ip || "—") +
+                  "</td></tr>"
+                );
+              });
+              rb.innerHTML = rr.length ? rr.join("") : "<tr><td colspan=\"4\">No rows yet</td></tr>";
+            })
+            .catch(function () {
+              showErr("Network error");
+            });
+        }
+        document.getElementById("analytics-load").addEventListener("click", load);
+        load();
+      })();
+    </script>
+  </body>
+</html>

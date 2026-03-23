@@ -2,7 +2,7 @@
 
 **Status:** Policy draft — not a promise of returns or redemption value.
 
-**`policy_version`:** `2026-03-19` (bump when material rules change; agents should compare to `GET …/asry-health` or doc hash).
+**`policy_version`:** `2026-03-19` (bump when material rules change; agents should compare to **`GET /api/asry-info`** on the live site, or doc hash). A dedicated `asry-health` URL is not implemented yet—use **`/api/asry-info`**.
 
 **Token:** ASRY (Agent Strategic Reserve Yield) — non-staking, epoch-based profit-sharing claim system; not ABSR and not BTC-pegged.
 
@@ -418,7 +418,7 @@ Publish **N, M, C, D** — use **§17 defaults** unless overridden in attestatio
 
 ### 14.1 Autonomous agent integration (machine-readable health)
 
-Expose at least one **stable JSON URL** (e.g. `GET /api/asry/health` or static `asry-health.json`) updated **at least daily** (or on state change). Agents should **cache by `policy_version`** and re-fetch on bump.
+Expose at least one **stable JSON URL** updated **at least daily** (or on state change). **Current site:** `GET /api/asry-info` (see `api-server.cjs`). A future `GET /api/asry/health` or static `asry-health.json` may supersede or extend it. Agents should **cache by `policy_version`** and re-fetch on bump.
 
 **Etiquette:** Prefer **one** health fetch per agent session + **backoff** on errors; do not hammer public RPC or site — use **documented** endpoints only.
 

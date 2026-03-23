@@ -1,5 +1,7 @@
 # ASRY — Development plan
 
+> **Note:** This is a delivery plan, not a live spec. Implemented behavior today is in **`api-server.cjs`** (e.g. `/api/asry-info`, `/api/asry/transactions`, `POST /api/asry/claim-from-deposit`) and **`lib/asry/`**.
+
 **Policy reference:** [ASRY-TREASURY-AND-YIELD-PLAN.md](./ASRY-TREASURY-AND-YIELD-PLAN.md) (§0.1 deployment phases, §0.2 critical path, §16 implementation priorities).
 
 **Scope:** Build order, deliverables, error budget, and graduation criteria for **website_bootstrap** → optional **production_hardened**. All initial components live on the **website stack**; no cold wallets or offline process until graduation.
@@ -123,7 +125,7 @@ P0 and Bootstrap can overlap (e.g. health endpoint early); **P1 starts only when
 
 ### 6.1 Deliverables
 
-- [ ] **Health endpoint** — `GET /api/asry/health` (or static `asry-health.json`) with fields from policy §14.1:
+- [ ] **Health endpoint** — `GET /api/asry/health` (or static `asry-health.json`) with fields from policy §14.1 (**interim:** `GET /api/asry-info` is implemented):
   - Required: `policy_version`, `deployment_phase` (= `website_bootstrap`), `payout_execution` (= `website_hot_testing`).
   - As available: `pause_authority`, `btc_price_usd`, `ltv_attestation`, `emergency_mode`, `degraded_mode`, `yield_eligible`, `redemption_cooldown_days`, `redemption_delay_days`, `current_epoch_id`, `current_epoch_end_iso`, `minimum_claim_usd`, etc.
 - [ ] **Treasury hot wallet** — One or more keys (env or keystore) used for receives and sends; **not** cold; document that this is bootstrap-only.

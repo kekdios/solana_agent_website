@@ -83,6 +83,8 @@
         margin-bottom: 0.25rem;
       }
       .card-header-row .panel-title-icon { width: 1.875rem; height: 1.875rem; margin-right: 0.5rem; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+      .pool-pair-icons { display: inline-flex; align-items: center; gap: 0.2rem; flex-shrink: 0; }
+      .pool-pair-icons .panel-title-icon { margin-right: 0; width: 1.375rem; height: 1.375rem; }
       .card-header-row h2 { margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
       .sats-note { font-size: 0.8125rem; color: #64748b; margin: 0.5rem 0 1rem 0; }
       .arb-token-info {
@@ -144,17 +146,20 @@
       footer a:hover { text-decoration: underline; }
       .error { color: #f87171; font-size: 0.875rem; }
       .tx-table-wrap { margin-top: 1.25rem; overflow-x: auto; }
-      table.tx-table {
+      table.tx-table, table.pool-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.875rem;
       }
       table.tx-table th,
-      table.tx-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
-      table.tx-table th { color: #64748b; font-weight: 500; }
-      table.tx-table td { color: #cbd5e1; }
-      table.tx-table a { color: #34d399; text-decoration: none; }
-      table.tx-table a:hover { text-decoration: underline; }
+      table.tx-table td,
+      table.pool-table th,
+      table.pool-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #1e1e24; }
+      table.tx-table th, table.pool-table th { color: #64748b; font-weight: 500; }
+      table.tx-table td, table.pool-table td { color: #cbd5e1; }
+      table.tx-table a, table.pool-table a { color: #34d399; text-decoration: none; }
+      table.tx-table a:hover, table.pool-table a:hover { text-decoration: underline; }
+      .pool-table td.num { font-variant-numeric: tabular-nums; }
       .pagination {
         display: flex;
         align-items: center;
@@ -218,6 +223,7 @@
       <a href="api.html">API</a>
       <a href="clawstr.html">Clawstr</a>
       <a href="bulletin.html">Bulletin</a>
+      <a href="visitors.html">Visitors</a>
       <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
       <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
     </aside>
@@ -314,6 +320,47 @@
           </div>
         </section>
 
+        <section class="reserve-card" aria-labelledby="orca-sausd-usdc-heading">
+          <div class="card-header-row">
+            <h2 id="orca-sausd-usdc-heading">
+              <span class="pool-pair-icons" title="SAUSD and USDC" aria-hidden="true">
+                <img src="SAUSD.svg" alt="" class="panel-title-icon" width="22" height="22" style="border-radius:0.35rem;object-fit:cover" />
+                <img src="USDC.png" alt="" class="panel-title-icon" width="22" height="22" style="border-radius:0.35rem" />
+              </span>
+              Orca Whirlpool (SAUSD / USDC)
+            </h2>
+            <button type="button" class="btn" id="treasury-sausd-usdc-pool-refresh">Refresh</button>
+          </div>
+          <p class="sats-note">
+            Pool data from <a class="link-accent" href="https://api.orca.so" target="_blank" rel="noopener noreferrer">Orca API</a>
+            (<code>GET /v2/solana/pools/{address}</code>) via this site’s proxy
+            <code>/api/orca/pool/…</code>. Pool page on
+            <a class="link-accent" id="orca-sausd-usdc-pool-link" href="https://www.orca.so/pools/B7rRNh2ur5K7xvFp8V3L5wJ6qKxnfNeKSq76Bz3EfLdK" target="_blank" rel="noopener noreferrer">Orca</a>.
+            Quick swap (third-party — verify mints):
+            <a
+              class="link-accent"
+              href="https://www.orca.so/trade?tokenIn=CK9PodBifHymLBGeZujExFnpoLCsYxAw7t8c8LsDKLxG&amp;tokenOut=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+              target="_blank"
+              rel="noopener noreferrer"
+            >SAUSD ↔ USDC</a>.
+          </p>
+          <div id="treasury-sausd-usdc-pool-loading" class="sats-note">Loading pool…</div>
+          <p class="error" id="treasury-sausd-usdc-pool-error" style="display:none;"></p>
+          <div id="treasury-sausd-usdc-pool-table-wrap" style="display:none;">
+            <table class="pool-table" aria-label="SAUSD USDC pool details">
+              <tbody id="treasury-sausd-usdc-pool-tbody"></tbody>
+            </table>
+          </div>
+          <p class="sats-note" style="margin-bottom:0">
+            <a
+              class="btn"
+              href="https://www.orca.so/trade?tokenIn=CK9PodBifHymLBGeZujExFnpoLCsYxAw7t8c8LsDKLxG&amp;tokenOut=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Open SAUSD ↔ USDC on Orca</a>
+          </p>
+        </section>
+
         <section class="reserve-card" aria-labelledby="sabtc-teaser-heading">
           <div class="card-header-row">
             <h2 id="sabtc-teaser-heading"><img src="BTC.png" alt="" class="panel-title-icon" width="24" height="24" /> SABTC</h2>
@@ -357,6 +404,7 @@
       </footer>
     </div>
 
+    <script src="pool-fee-format.js"></script>
     <script>
       const API = "/api";
       const SOLANA_EXPLORER = "https://explorer.solana.com";
@@ -366,6 +414,11 @@
       const DEFAULT_LABELS = { sausd: "SAUSD" };
 
       const txState = { sausd: { list: [], page: 1 } };
+
+      const ORCA_POOL_SAUSD_USDC = "B7rRNh2ur5K7xvFp8V3L5wJ6qKxnfNeKSq76Bz3EfLdK";
+      const ORCA_UI_SAUSD_USDC = "https://www.orca.so/pools/" + ORCA_POOL_SAUSD_USDC;
+      const DEFAULT_SAUSD_MINT_POOL = "CK9PodBifHymLBGeZujExFnpoLCsYxAw7t8c8LsDKLxG";
+      const USDC_MINT_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
       function escapeHtml(s) {
         const div = document.createElement("div");
@@ -381,6 +434,197 @@
         a.rel = "noopener noreferrer";
         a.textContent = addr;
         return a.outerHTML;
+      }
+
+      function poolRow(label, valueHtml) {
+        return "<tr><th>" + escapeHtml(label) + "</th><td class=\"num\">" + valueHtml + "</td></tr>";
+      }
+
+      function poolSlotLabelSausdUsdc(slot, mintAddr, sym, sausdMint, usdcMint) {
+        var m = String(mintAddr || "").trim();
+        if (m === sausdMint) return "Token " + slot + " (SAUSD)";
+        if (m === usdcMint) return "Token " + slot + " (USDC)";
+        return "Token " + slot + " (" + (sym || "?") + ")";
+      }
+
+      /** Whirlpool `price` is ~token B per 1 token A. Returns USDC human units per 1 SAUSD when both legs match. */
+      function impliedUsdcPerOneSausd(d, sausdMint, usdcMint) {
+        var mintA = String(d.tokenMintA || (d.tokenA && d.tokenA.address) || "").trim();
+        var mintB = String(d.tokenMintB || (d.tokenB && d.tokenB.address) || "").trim();
+        var sm = String(sausdMint || "").trim();
+        var um = String(usdcMint || "").trim();
+        if (!sm || !um || d.price == null) return null;
+        var pr = Number(d.price);
+        if (!Number.isFinite(pr) || pr <= 0) return null;
+        var aS = mintA === sm;
+        var bS = mintB === sm;
+        var aU = mintA === um;
+        var bU = mintB === um;
+        if (aS && bU) return pr;
+        if (bS && aU) return 1 / pr;
+        return null;
+      }
+
+      function formatUsdCommas(n) {
+        if (!Number.isFinite(n)) return "—";
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
+        }).format(n);
+      }
+
+      function displayWhirlpoolSwapFeeTreasury(d) {
+        if (d.swapFeePercentDisplay != null && String(d.swapFeePercentDisplay).trim() !== "") {
+          return String(d.swapFeePercentDisplay);
+        }
+        if (typeof SolanaAgentWhirlpoolFee !== "undefined" && SolanaAgentWhirlpoolFee.formatSwapFeePercent) {
+          return SolanaAgentWhirlpoolFee.formatSwapFeePercent(d.feeRate);
+        }
+        var n = Number(d.feeRate);
+        if (!Number.isFinite(n) || n < 0) return "—";
+        return ((n / 1000000) * 100).toFixed(4) + "%";
+      }
+
+      function uiFromRawPool(raw, decimals) {
+        var dec = Number(decimals);
+        var r = BigInt(String(raw == null ? "0" : raw).split(".")[0] || "0");
+        if (!Number.isFinite(dec) || dec < 0 || dec > 18) return String(raw);
+        var neg = r < 0n;
+        var x = neg ? -r : r;
+        var whole = x / BigInt(10) ** BigInt(dec);
+        var frac = x % BigInt(10) ** BigInt(dec);
+        var fs = frac.toString().padStart(dec, "0").replace(/0+$/, "");
+        if (fs.length) fs = "." + fs;
+        return (neg ? "-" : "") + whole.toString() + fs;
+      }
+
+      async function loadTreasurySausdUsdcPool() {
+        var loading = document.getElementById("treasury-sausd-usdc-pool-loading");
+        var errEl = document.getElementById("treasury-sausd-usdc-pool-error");
+        var wrap = document.getElementById("treasury-sausd-usdc-pool-table-wrap");
+        var tbody = document.getElementById("treasury-sausd-usdc-pool-tbody");
+        var btn = document.getElementById("treasury-sausd-usdc-pool-refresh");
+        var link = document.getElementById("orca-sausd-usdc-pool-link");
+        if (link) link.href = ORCA_UI_SAUSD_USDC;
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "…";
+        }
+        if (loading) loading.style.display = "block";
+        if (errEl) {
+          errEl.style.display = "none";
+          errEl.textContent = "";
+        }
+        if (wrap) wrap.style.display = "none";
+
+        try {
+          var res = await fetch(API + "/orca/pool/" + encodeURIComponent(ORCA_POOL_SAUSD_USDC));
+          var siRes = await fetch(API + "/treasury-token/sausd/info");
+          var text = await res.text();
+          var si = null;
+          try {
+            if (siRes.ok) si = await siRes.json();
+          } catch (_) {}
+          var SAUSD_MINT = (si && String(si.mint_address || "").trim()) || DEFAULT_SAUSD_MINT_POOL;
+          var USDC_MINT = USDC_MINT_MAINNET;
+
+          var json;
+          try {
+            json = JSON.parse(text);
+          } catch (e) {
+            if (loading) loading.style.display = "none";
+            if (errEl) {
+              errEl.style.display = "block";
+              errEl.textContent = text.trim().slice(0, 400) || "Non-JSON response from API.";
+            }
+            return;
+          }
+
+          if (!json || !json.data) {
+            var msg =
+              (json && json.message) ||
+              (json && json.body_preview) ||
+              (json && json.error && json.error !== "orca_non_json" && String(json.error)) ||
+              (json && json.error === "orca_non_json"
+                ? "Orca’s API did not return pool JSON (often 404 until the pool is indexed). Use the Orca link above."
+                : null) ||
+              "Pool not returned by Orca API. Use Orca UI if the pool trades but API is empty.";
+            if (loading) loading.style.display = "none";
+            if (errEl) {
+              errEl.style.display = "block";
+              errEl.textContent = String(msg);
+            }
+            return;
+          }
+
+          var d = json.data;
+          var ta = d.tokenA || {};
+          var tb = d.tokenB || {};
+          var symA = ta.symbol || "A";
+          var symB = tb.symbol || "B";
+          var mintA = String(d.tokenMintA || ta.address || "").trim();
+          var mintB = String(d.tokenMintB || tb.address || "").trim();
+          var balA = d.tokenBalanceA != null ? uiFromRawPool(d.tokenBalanceA, ta.decimals) : "—";
+          var balB = d.tokenBalanceB != null ? uiFromRawPool(d.tokenBalanceB, tb.decimals) : "—";
+
+          var html = "";
+          html += poolRow("Pool address", linkAddr(d.address || ORCA_POOL_SAUSD_USDC));
+          html += poolRow(
+            poolSlotLabelSausdUsdc("A", mintA, symA, SAUSD_MINT, USDC_MINT),
+            escapeHtml(balA) + " <span style=\"color:#64748b\">raw vault balance</span>"
+          );
+          html += poolRow("Mint A", linkAddr(mintA || ta.address));
+          html += poolRow(
+            poolSlotLabelSausdUsdc("B", mintB, symB, SAUSD_MINT, USDC_MINT),
+            escapeHtml(balB) + " <span style=\"color:#64748b\">raw vault balance</span>"
+          );
+          html += poolRow("Mint B", linkAddr(mintB || tb.address));
+          var usdcPerSausd = impliedUsdcPerOneSausd(d, SAUSD_MINT, USDC_MINT);
+          if (usdcPerSausd != null) {
+            html += poolRow(
+              "Implied USDC per 1 SAUSD",
+              "<strong>" +
+                formatUsdCommas(usdcPerSausd) +
+                "</strong> <span style=\"color:#64748b;font-weight:400\">· both ~$1 face</span>"
+            );
+          } else if (d.price != null) {
+            html += poolRow("Price (pool ratio, B per 1 A)", escapeHtml(String(d.price)));
+          }
+          if (d.tvlUsdc != null) html += poolRow("TVL (USDC)", escapeHtml(String(d.tvlUsdc)));
+          html += poolRow("Swap fee (approx.)", escapeHtml(displayWhirlpoolSwapFeeTreasury(d)));
+          if (d.protocolFeeRate != null) html += poolRow("Protocol fee rate (raw)", escapeHtml(String(d.protocolFeeRate)));
+          if (d.tickSpacing != null) html += poolRow("Tick spacing", escapeHtml(String(d.tickSpacing)));
+          if (d.tickCurrentIndex != null) html += poolRow("Current tick", escapeHtml(String(d.tickCurrentIndex)));
+          if (d.liquidity != null) html += poolRow("Liquidity (raw)", escapeHtml(String(d.liquidity)));
+          if (d.poolType) html += poolRow("Pool type", escapeHtml(String(d.poolType)));
+          if (d.updatedAt) html += poolRow("Updated (Orca)", escapeHtml(String(d.updatedAt)));
+          if (d.stats && d.stats["24h"] && d.stats["24h"].volume != null) {
+            html += poolRow("24h volume", escapeHtml(String(d.stats["24h"].volume)));
+          }
+          if (d.poolDataSource === "solana_rpc") {
+            html += poolRow(
+              "Pool data source",
+              "Solana RPC (Whirlpool on-chain). Orca’s indexer did not return this pool; vault balances and fees are live from the chain."
+            );
+          }
+
+          if (tbody) tbody.innerHTML = html;
+          if (loading) loading.style.display = "none";
+          if (wrap) wrap.style.display = "block";
+        } catch (e) {
+          if (loading) loading.style.display = "none";
+          if (errEl) {
+            errEl.style.display = "block";
+            errEl.textContent = e.message || "Could not load pool.";
+          }
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Refresh";
+          }
+        }
       }
 
       async function loadTreasuryPubkey() {
@@ -605,6 +849,10 @@
       initTreasuryLine();
       loadTreasurySchedule();
       refreshAll();
+      var _suPoolBtn = document.getElementById("treasury-sausd-usdc-pool-refresh");
+      if (_suPoolBtn) _suPoolBtn.addEventListener("click", loadTreasurySausdUsdcPool);
+      loadTreasurySausdUsdcPool();
     </script>
+    <script src="site-analytics.js" defer></script>
   </body>
 </html>

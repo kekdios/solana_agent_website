@@ -20,6 +20,7 @@ const PAGES = [
   "api.html",
   "clawstr.html",
   "bulletin.html",
+  "visitors.html",
 ];
 
 const REQUIRED_ASSETS = ["icon_dock.png", "solanaagent_rec.png", "pool-fee-format.js"];

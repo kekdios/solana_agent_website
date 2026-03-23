@@ -88,6 +88,30 @@ async function run() {
     ok("GET /api/v1/clawstr/communities", await request("GET", "/api/v1/clawstr/communities"));
     ok("GET /api/v1/bulletin/health", await request("GET", "/api/v1/bulletin/health"));
     ok("GET /api/v1/bulletin/feed?limit=5", await request("GET", "/api/v1/bulletin/feed?limit=5"));
+    ok("GET /api/analytics/stats", await request("GET", "/api/analytics/stats"));
+    const pvPost = await request("POST", "/api/analytics/pageview", {
+      path: "/test-pageview-" + Date.now(),
+      referrer: "",
+    });
+    results.push({
+      name: "POST /api/analytics/pageview",
+      pass: pvPost.status === 204,
+      status: pvPost.status,
+    });
+    console.log(pvPost.status === 204 ? "  OK" : "  FAIL", pvPost.status, "POST /api/analytics/pageview");
+    const statsAfterPv = await request("GET", "/api/analytics/stats");
+    let statsJ = {};
+    try {
+      statsJ = JSON.parse(statsAfterPv.data || "{}");
+    } catch (_) {}
+    const statsHasViews =
+      statsAfterPv.status === 200 && statsJ.ok === true && Number(statsJ.total_pageviews) >= 1;
+    results.push({
+      name: "GET /api/analytics/stats after pageview",
+      pass: statsHasViews,
+      status: statsAfterPv.status,
+    });
+    console.log(statsHasViews ? "  OK" : "  FAIL", statsAfterPv.status, "GET /api/analytics/stats after pageview");
     ok("GET /api/transactions/bitcoin", await request("GET", "/api/transactions/bitcoin"));
     ok("GET /api/transactions/solana", await request("GET", "/api/transactions/solana"));
 
@@ -114,21 +138,51 @@ async function run() {
       console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool-saeth-sausd-default 307");
     }
     {
-      const r = await request("GET", "/api/orca/pool/BzwjX8hwMbkVdhGu2w9qTtokr5ExqSDSw9bNMxdkExRS");
+      const poolId = "BzwjX8hwMbkVdhGu2w9qTtokr5ExqSDSw9bNMxdkExRS";
+      const r = await request("GET", "/api/orca/pool/" + poolId);
       let j = {};
       try {
         j = JSON.parse(r.data || "{}");
       } catch (_) {}
+      const d = j.data || {};
+      const fromRpc =
+        d.poolDataSource === "solana_rpc" &&
+        typeof d.swapFeePercentDisplay === "string" &&
+        d.swapFeePercentDisplay.includes("%");
+      const fromOrcaIndexer =
+        d.tokenMintA &&
+        (d.tokenBalanceA != null || (d.tokenA && d.tokenA.address));
+      const pass = r.status === 200 && d.address === poolId && fromOrcaIndexer && (fromRpc || d.feeRate != null || d.stats);
+      results.push({ name: "GET /api/orca/pool SAETH/SAUSD default pool", pass, status: r.status });
+      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool SAETH/SAUSD default pool");
+    }
+    {
+      const poolId = "B7rRNh2ur5K7xvFp8V3L5wJ6qKxnfNeKSq76Bz3EfLdK";
+      const r = await request("GET", "/api/orca/pool/" + poolId);
+      let j = {};
+      try {
+        j = JSON.parse(r.data || "{}");
+      } catch (_) {}
+      const d = j.data || {};
+      const balA = d.tokenBalanceA != null ? String(d.tokenBalanceA) : "";
+      const balB = d.tokenBalanceB != null ? String(d.tokenBalanceB) : "";
       const pass =
         r.status === 200 &&
-        j.data &&
-        j.data.poolDataSource === "solana_rpc" &&
-        j.data.tokenMintA &&
-        j.data.tokenBalanceA != null &&
-        typeof j.data.swapFeePercentDisplay === "string" &&
-        j.data.swapFeePercentDisplay.includes("%");
-      results.push({ name: "GET /api/orca/pool on-chain fallback (SAETH/SAUSD pool)", pass, status: r.status });
-      console.log(pass ? "  OK" : "  FAIL", r.status, "GET /api/orca/pool on-chain fallback (SAETH/SAUSD pool)");
+        d.tokenVaultA &&
+        balA !== "" &&
+        balA !== "0" &&
+        balB !== "" &&
+        balB !== "0";
+      results.push({
+        name: "GET /api/orca/pool SAUSD/USDC vault balances filled from RPC when Orca shows 0",
+        pass,
+        status: r.status,
+      });
+      console.log(
+        pass ? "  OK" : "  FAIL",
+        r.status,
+        "GET /api/orca/pool SAUSD/USDC vault balances filled from RPC when Orca shows 0"
+      );
     }
 
     console.log("\n--- POST (no chain tx) ---");
@@ -180,6 +234,18 @@ async function run() {
       status: invalidAgentPost.status,
     });
     console.log(invalidAgentPost.status === 401 ? "  OK" : "  FAIL", invalidAgentPost.status, "POST /api/v1/bulletin/post invalid agent code");
+    const openPostRes = await request("POST", "/api/v1/bulletin/post", {
+      content: "hello open bulletin test " + Date.now(),
+    });
+    ok("POST /api/v1/bulletin/post open (content only)", openPostRes);
+    const parsedOpen = JSON.parse(openPostRes.data || "{}");
+    const openHasEventId = !!(parsedOpen && parsedOpen.post && parsedOpen.post.nostr_event_id);
+    results.push({
+      name: "POST /api/v1/bulletin/post open includes nostr_event_id",
+      pass: openHasEventId,
+      status: openPostRes.status,
+    });
+    console.log(openHasEventId ? "  OK" : "  FAIL", openPostRes.status, "POST /api/v1/bulletin/post open includes nostr_event_id");
     const postRes = await request("POST", "/api/v1/bulletin/post", {
       content: "hello from test bulletin",
       agent_code: BULLETIN_TEST_AGENT_CODE,

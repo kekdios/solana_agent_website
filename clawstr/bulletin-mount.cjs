@@ -22,6 +22,8 @@ const BULLETIN_SKIP_NOSTR_PUBLISH = /^(1|true|yes)$/i.test(String(process.env.BU
 const BULLETIN_POST_MAX_LENGTH = Math.max(1, Number(process.env.BULLETIN_POST_MAX_LENGTH || "1000"));
 const BULLETIN_AGENT_RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.BULLETIN_AGENT_RATE_LIMIT_PER_MIN || "5"));
 const BULLETIN_PAID_RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.BULLETIN_PAID_RATE_LIMIT_PER_MIN || "10"));
+/** Posts with neither agent_code nor payment (open mode); keep low to limit spam. */
+const BULLETIN_OPEN_RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.BULLETIN_OPEN_RATE_LIMIT_PER_MIN || "5"));
 const SUBCLAW = JSON.parse(fs.readFileSync(path.join(__dirname, "subclaw.json"), "utf8"));
 const RELAYS = JSON.parse(fs.readFileSync(path.join(__dirname, "relays.default.json"), "utf8"));
 const RATE_WINDOW_MS = 60 * 1000;
@@ -347,13 +349,22 @@ async function tryHandleBulletin(req, res, pathname) {
     const txSignature = String(body.tx_signature || "").trim();
     const db = getDb();
     let intentId = "";
-    const authMode = providedAgentCode ? "agent_code" : "paid";
+    let authMode;
+    if (providedAgentCode) {
+      authMode = "agent_code";
+    } else if (paymentIntentId) {
+      authMode = "paid";
+    } else {
+      authMode = "open";
+    }
     const nowMs = Date.now();
-    const rateLimit = checkRateLimit(
-      `post:${authMode}:${clientIp}`,
-      authMode === "agent_code" ? BULLETIN_AGENT_RATE_LIMIT_PER_MIN : BULLETIN_PAID_RATE_LIMIT_PER_MIN,
-      nowMs
-    );
+    const rateLimitMax =
+      authMode === "agent_code"
+        ? BULLETIN_AGENT_RATE_LIMIT_PER_MIN
+        : authMode === "paid"
+          ? BULLETIN_PAID_RATE_LIMIT_PER_MIN
+          : BULLETIN_OPEN_RATE_LIMIT_PER_MIN;
+    const rateLimit = checkRateLimit(`post:${authMode}:${clientIp}`, rateLimitMax, nowMs);
     if (!rateLimit.ok) {
       res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
       writeModerationLog({
@@ -401,12 +412,7 @@ async function tryHandleBulletin(req, res, pathname) {
          (id, reference, wallet_address, amount_lamports, status, created_at, expires_at, confirmed_at, tx_signature, verification_method, verification_reason)
          VALUES (@id, @reference, @wallet_address, @amount_lamports, @status, @created_at, @expires_at, @confirmed_at, @tx_signature, 'agent_code', 'shared_code_valid')`
       ).run(authRow);
-    } else {
-      if (!paymentIntentId) {
-        writeModerationLog({ ts: requestTs, route: pathname, ip: clientIp, auth_mode: authMode, outcome: "missing_post_auth", status: 400 });
-        json(res, 400, { error_code: "MISSING_FIELDS", error: "agent_code or payment_intent_id is required" });
-        return true;
-      }
+    } else if (authMode === "paid") {
       const intent = db.prepare("SELECT * FROM payment_intents WHERE id = ?").get(paymentIntentId);
       if (!intent) {
         writeModerationLog({ ts: requestTs, route: pathname, ip: clientIp, auth_mode: authMode, outcome: "payment_intent_not_found", status: 404, payment_intent_id: paymentIntentId });
@@ -456,11 +462,26 @@ async function tryHandleBulletin(req, res, pathname) {
         return true;
       }
       intentId = paymentIntentId;
-    }
-    if (!intentId) {
-      writeModerationLog({ ts: requestTs, route: pathname, ip: clientIp, auth_mode: authMode, outcome: "missing_intent_after_auth", status: 503 });
-      json(res, 503, { error_code: "SERVICE_CONFIG", error: "CLAWSTR_AGENT_CODE is not configured" });
-      return true;
+    } else {
+      /* Open posting: no payment_intent_id and no agent_code — rate-limited per IP only. */
+      intentId = randomId("open_post_auth");
+      const createdAtOpen = nowIso();
+      const openRow = {
+        id: intentId,
+        reference: randomId("open_ref"),
+        wallet_address: "open",
+        amount_lamports: 0,
+        status: "confirmed",
+        created_at: createdAtOpen,
+        expires_at: createdAtOpen,
+        confirmed_at: createdAtOpen,
+        tx_signature: null,
+      };
+      db.prepare(
+        `INSERT INTO payment_intents
+         (id, reference, wallet_address, amount_lamports, status, created_at, expires_at, confirmed_at, tx_signature, verification_method, verification_reason)
+         VALUES (@id, @reference, @wallet_address, @amount_lamports, @status, @created_at, @expires_at, @confirmed_at, @tx_signature, 'open', 'no_payment_required')`
+      ).run(openRow);
     }
     const post = {
       id: randomId("post"),

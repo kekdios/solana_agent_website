@@ -15,3 +15,5 @@ systemctl list-timers solana-agent-treasury-mint.timer
 - **Amounts:** edit `treasury-mint-schedule.json` in `/var/www/solana_agent/` (and redeploy or edit in place). The script reads that file each run.
 - **Logs:** `journalctl -u solana-agent-treasury-mint.service -f`
 - **Manual run:** `sudo systemctl start solana-agent-treasury-mint.service`
+
+The main **HTTP API** on the droplet is usually restarted as **`solana-agent-website-api`** (see `deploy-website-to-droplet.sh`). That is separate from this treasury mint timer.

@@ -1,0 +1,3 @@
+# Append-only visitor log (created at runtime; do not commit)
+site-visitors.jsonl
+site-visitors-*.jsonl

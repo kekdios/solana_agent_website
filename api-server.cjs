@@ -3,6 +3,8 @@
  * Env: BTC_PRIVATE_KEY_WIF, SOLANA_PRIVATE_KEY. SOL→BTC swap via LI.FI (no API key required).
  */
 const http = require("http");
+const fs = require("fs");
+const nodePath = require("path");
 const { Keypair, Connection, PublicKey, Transaction, VersionedTransaction, SystemProgram } = require("@solana/web3.js");
 const { createMint, getOrCreateAssociatedTokenAccount, mintTo, setAuthority, AuthorityType, getMint, getAssociatedTokenAddress } = require("@solana/spl-token");
 const bs58 = require("bs58");
@@ -39,12 +41,51 @@ const SABTC_ORCA_POOL_ADDRESS =
 /** Default SAETH/SAUSD Whirlpool (matches saeth.html); override with SAETH_SAUSD_ORCA_POOL_ADDRESS. */
 const SAETH_SAUSD_ORCA_POOL_ADDRESS =
   (process.env.SAETH_SAUSD_ORCA_POOL_ADDRESS || "").trim() || "BzwjX8hwMbkVdhGu2w9qTtokr5ExqSDSw9bNMxdkExRS";
+/** Default SAUSD / native USDC Whirlpool (matches treasury.html); override with SAUSD_USDC_ORCA_POOL_ADDRESS. */
+const SAUSD_USDC_ORCA_POOL_ADDRESS =
+  (process.env.SAUSD_USDC_ORCA_POOL_ADDRESS || "").trim() || "B7rRNh2ur5K7xvFp8V3L5wJ6qKxnfNeKSq76Bz3EfLdK";
 const ORCA_POOLS_API = "https://api.orca.so/v2/solana/pools";
 const MPL_TOKEN_METADATA = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 function isLikelySolanaPubkey(s) {
   const t = String(s || "").trim();
   return /^[1-9A-HJ-NP-Za-km-z]{32,48}$/.test(t);
+}
+
+function orcaTokenBalanceIsZeroish(v) {
+  if (v == null || v === "") return true;
+  if (typeof v === "number" && v === 0) return true;
+  const n = String(v).trim();
+  if (n === "0") return true;
+  try {
+    return BigInt(n) === 0n;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Orca REST often returns tokenBalanceA/B as "0" for splash / flagged pools while SPL vaults hold liquidity.
+ * Fill from Solana RPC so site matches explorer vault accounts (e.g. SAUSD/USDC Whirlpool).
+ */
+async function enrichOrcaPoolVaultBalancesFromRpc(data) {
+  if (!data || typeof data !== "object") return;
+  if (!orcaTokenBalanceIsZeroish(data.tokenBalanceA) || !orcaTokenBalanceIsZeroish(data.tokenBalanceB)) return;
+  const va = data.tokenVaultA;
+  const vb = data.tokenVaultB;
+  if (!isLikelySolanaPubkey(va) || !isLikelySolanaPubkey(vb)) return;
+  try {
+    const conn = new Connection(SOLANA_RPC);
+    const [ra, rb] = await Promise.all([
+      conn.getTokenAccountBalance(new PublicKey(va)),
+      conn.getTokenAccountBalance(new PublicKey(vb)),
+    ]);
+    if (ra?.value?.amount != null) data.tokenBalanceA = ra.value.amount;
+    if (rb?.value?.amount != null) data.tokenBalanceB = rb.value.amount;
+    if (data.tokenA && typeof ra?.value?.decimals === "number") data.tokenA.decimals = ra.value.decimals;
+    if (data.tokenB && typeof rb?.value?.decimals === "number") data.tokenB.decimals = rb.value.decimals;
+    data.vault_balances_source = "solana_rpc";
+  } catch (_) {}
 }
 
 const TREASURY_TOKEN_MINT_BY_ID = {
@@ -230,6 +271,189 @@ function readJsonBody(req) {
   });
 }
 
+function readJsonBodyMax(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    let bytes = 0;
+    req.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) return;
+      body += chunk.toString("utf8");
+    });
+    req.on("end", () => {
+      if (bytes > maxBytes) {
+        reject(new Error("body_too_large"));
+        return;
+      }
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+const VISITOR_LOG_PATH = nodePath.resolve(
+  process.env.VISITOR_LOG_PATH || nodePath.join(__dirname, "data", "site-visitors.jsonl")
+);
+const MAX_VISITOR_LOG_BYTES = Number(process.env.MAX_VISITOR_LOG_BYTES) || 8 * 1024 * 1024;
+const ANALYTICS_PV_MAX_PER_HOUR = Number(process.env.ANALYTICS_PV_MAX_PER_HOUR) || 6000;
+
+const _pvRate = new Map();
+
+/** Best-effort client IP behind nginx / Cloudflare (never trust for security; OK for analytics + soft rate limit). */
+function analyticsClientIp(req) {
+  const cf = String(req.headers["cf-connecting-ip"] || "").trim();
+  if (cf) return cf.slice(0, 128);
+  const xf = String(req.headers["x-forwarded-for"] || "")
+    .split(",")[0]
+    .trim();
+  if (xf) return xf.slice(0, 128);
+  const xr = String(req.headers["x-real-ip"] || "").trim();
+  if (xr) return xr.slice(0, 128);
+  const a = req.socket && req.socket.remoteAddress;
+  return a ? String(a).slice(0, 128) : "";
+}
+
+function analyticsIsLoopbackLike(ip) {
+  const s = String(ip || "")
+    .trim()
+    .toLowerCase();
+  return s === "127.0.0.1" || s === "::1" || s === "::ffff:127.0.0.1" || s === "localhost";
+}
+
+/**
+ * When nginx proxies to Node, remoteAddress is often 127.0.0.1 for every visitor. Without X-Forwarded-For /
+ * X-Real-IP, a single shared rate-limit bucket (600/h) dropped almost all pageviews. Skip limit for loopback-only peer.
+ */
+function analyticsRateOk(ip) {
+  if (analyticsIsLoopbackLike(ip)) return true;
+  const now = Date.now();
+  const windowMs = 3600000;
+  let b = _pvRate.get(ip);
+  if (!b || now > b.reset) {
+    b = { n: 0, reset: now + windowMs };
+    _pvRate.set(ip, b);
+  }
+  if (b.n >= ANALYTICS_PV_MAX_PER_HOUR) return false;
+  b.n += 1;
+  return true;
+}
+
+function analyticsEnsureLogDir() {
+  const dir = nodePath.dirname(VISITOR_LOG_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function analyticsRotateIfNeeded() {
+  try {
+    if (!fs.existsSync(VISITOR_LOG_PATH)) return;
+    const st = fs.statSync(VISITOR_LOG_PATH);
+    if (st.size <= MAX_VISITOR_LOG_BYTES) return;
+    const arch = VISITOR_LOG_PATH.replace(/\.jsonl$/i, "") + "-" + Date.now() + ".jsonl";
+    fs.renameSync(VISITOR_LOG_PATH, arch);
+  } catch (e) {
+    console.error("[analytics] rotate:", e && e.message ? e.message : e);
+  }
+}
+
+function analyticsAppendRecord(obj) {
+  analyticsEnsureLogDir();
+  analyticsRotateIfNeeded();
+  try {
+    fs.appendFileSync(VISITOR_LOG_PATH, JSON.stringify(obj) + "\n", "utf8");
+  } catch (e) {
+    console.error("[analytics] append failed:", VISITOR_LOG_PATH, e && e.message ? e.message : e);
+    throw e;
+  }
+}
+
+function analyticsRedactIp(ip) {
+  const s = String(ip || "").trim();
+  if (!s) return "";
+  if (s.includes(".")) {
+    const p = s.split(".");
+    if (p.length >= 4) return `${p[0]}.${p[1]}.${p[2]}.x`;
+  }
+  if (s.includes(":")) return s.split(":").slice(0, 3).join(":") + ":…";
+  return s.slice(0, 12) + (s.length > 12 ? "…" : "");
+}
+
+function analyticsLoadRecords(maxTailBytes) {
+  if (!fs.existsSync(VISITOR_LOG_PATH)) return [];
+  const st = fs.statSync(VISITOR_LOG_PATH);
+  let raw;
+  if (st.size <= maxTailBytes) {
+    raw = fs.readFileSync(VISITOR_LOG_PATH, "utf8");
+  } else {
+    const fd = fs.openSync(VISITOR_LOG_PATH, "r");
+    const buf = Buffer.alloc(maxTailBytes);
+    fs.readSync(fd, buf, 0, maxTailBytes, st.size - maxTailBytes);
+    fs.closeSync(fd);
+    raw = buf.toString("utf8");
+    const nl = raw.indexOf("\n");
+    if (nl !== -1) raw = raw.slice(nl + 1);
+  }
+  const out = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      out.push(JSON.parse(line));
+    } catch (_) {}
+  }
+  return out;
+}
+
+function analyticsStatsFromRecords(records) {
+  const now = Date.now();
+  const day = 86400000;
+  const byPath = new Map();
+  let last24 = 0;
+  let last7 = 0;
+  const ips24 = new Set();
+  for (const r of records) {
+    const p = typeof r.path === "string" ? r.path : "";
+    byPath.set(p, (byPath.get(p) || 0) + 1);
+    const t = r.t ? Date.parse(r.t) : NaN;
+    if (Number.isFinite(t)) {
+      if (now - t <= day) last24 += 1;
+      if (now - t <= 7 * day) last7 += 1;
+      if (now - t <= day && r.ip) ips24.add(String(r.ip));
+    }
+  }
+  const by_path = [...byPath.entries()]
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count);
+  const recent = records
+    .slice(-80)
+    .reverse()
+    .map((r) => ({
+      t: r.t || null,
+      path: r.path || "",
+      referrer: (r.referrer || "").slice(0, 160),
+      ip: analyticsRedactIp(r.ip),
+    }));
+  return {
+    total_pageviews: records.length,
+    pageviews_last_24h: last24,
+    pageviews_last_7d: last7,
+    distinct_ips_last_24h: ips24.size,
+    by_path: by_path.slice(0, 40),
+    recent,
+  };
+}
+
+function analyticsValidPath(p) {
+  if (typeof p !== "string") return false;
+  const s = p.trim();
+  if (s.length === 0 || s.length > 512) return false;
+  if (!s.startsWith("/")) return false;
+  if (s.includes("..") || s.includes("\\") || s.includes("\0")) return false;
+  return true;
+}
+
 /** LI.FI: get quote for SOL → BTC. Returns quote object or null on error. */
 async function lifiQuote(fromAddress, toBtcAddress, fromAmountLamports) {
   const url = `${LIFI_BASE}/quote?fromChain=sol&toChain=btc&fromToken=SOL&toToken=BTC&fromAmount=${fromAmountLamports}&fromAddress=${encodeURIComponent(fromAddress)}&toAddress=${encodeURIComponent(toBtcAddress)}`;
@@ -382,6 +606,78 @@ const server = http.createServer(async (req, res) => {
     } else {
       res.writeHead(404);
       res.end(JSON.stringify({ error_code: "NOT_FOUND", error: "OpenAPI spec not available" }));
+    }
+    return;
+  }
+
+  if (path === "/api/analytics/pageview" && req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+    });
+    res.end();
+    return;
+  }
+
+  if (path === "/api/analytics/pageview" && req.method === "POST") {
+    (async () => {
+      const ip = analyticsClientIp(req);
+      try {
+        if (!analyticsRateOk(ip || "unknown")) {
+          res.writeHead(429);
+          res.end(JSON.stringify({ ok: false, error_code: "RATE_LIMITED", error: "Too many pageview events" }));
+          return;
+        }
+        const body = await readJsonBodyMax(req, 8192);
+        const p = body.path;
+        const referrer = typeof body.referrer === "string" ? body.referrer.slice(0, 2048) : "";
+        if (!analyticsValidPath(p)) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ ok: false, error_code: "BAD_PATH", error: "Invalid path" }));
+          return;
+        }
+        try {
+          analyticsAppendRecord({
+            t: new Date().toISOString(),
+            path: p,
+            referrer,
+            ip: ip || null,
+          });
+        } catch (appendErr) {
+          res.writeHead(500);
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error_code: "ANALYTICS_WRITE_FAILED",
+              error: "Could not write visitor log (check server filesystem permissions for data/)",
+            })
+          );
+          return;
+        }
+        res.writeHead(204);
+        res.end();
+      } catch (e) {
+        const msg = e && e.message === "body_too_large" ? "Body too large" : "Bad JSON";
+        res.writeHead(400);
+        res.end(JSON.stringify({ ok: false, error_code: "BAD_REQUEST", error: msg }));
+      }
+    })();
+    return;
+  }
+
+  if (path === "/api/analytics/stats" && req.method === "GET") {
+    try {
+      const records = analyticsLoadRecords(6 * 1024 * 1024);
+      const stats = analyticsStatsFromRecords(records);
+      res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true, log_path_hint: "data/site-visitors.jsonl", ...stats }));
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ ok: false, error_code: "STATS_ERROR", error: String(e && e.message ? e.message : e) }));
     }
     return;
   }
@@ -952,6 +1248,7 @@ const server = http.createServer(async (req, res) => {
           (parsed.data.address || parsed.data.tokenMintA);
 
         if (hasOrcaPoolData) {
+          await enrichOrcaPoolVaultBalancesFromRpc(parsed.data);
           res.writeHead(r.status);
           res.end(JSON.stringify(parsed));
           return;
@@ -988,6 +1285,12 @@ const server = http.createServer(async (req, res) => {
 
   if (path === "/api/orca/pool-saeth-sausd-default" && req.method === "GET") {
     res.writeHead(307, { Location: `/api/orca/pool/${encodeURIComponent(SAETH_SAUSD_ORCA_POOL_ADDRESS)}` });
+    res.end();
+    return;
+  }
+
+  if (path === "/api/orca/pool-sausd-usdc-default" && req.method === "GET") {
+    res.writeHead(307, { Location: `/api/orca/pool/${encodeURIComponent(SAUSD_USDC_ORCA_POOL_ADDRESS)}` });
     res.end();
     return;
   }
