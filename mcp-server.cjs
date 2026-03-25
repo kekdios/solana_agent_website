@@ -1,7 +1,7 @@
 /**
  * MCP server for Solana Agent website API.
  * Tools: get_reserves, swap_min, swap_estimate, swap_create, swap_status (SOL→BTC).
- * Bulletin, Clawstr, analytics, Orca proxy, etc. are HTTP-only on api-server.cjs.
+ * Nostr feeds, analytics, Orca proxy, etc. are HTTP-only on api-server.cjs.
  * Run: node mcp-server.cjs (stdio) or set API_BASE_URL for a different API origin.
  */
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");

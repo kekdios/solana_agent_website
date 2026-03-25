@@ -1,5 +1,7 @@
 # Hyperliquid Treasury Sync Bot Plan
 
+**Last reviewed:** March 2026.
+
 Status: Planning document only (no runtime behavior changes in this doc).
 
 Owner scope: website backend (`api-server.cjs` ecosystem) and treasury scripts.

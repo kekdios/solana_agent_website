@@ -1,5 +1,7 @@
 # ASRY — Development plan
 
+**Last reviewed:** March 2026.
+
 > **Note:** This is a delivery plan, not a live spec. Implemented behavior today is in **`api-server.cjs`** (e.g. `/api/asry-info`, `/api/asry/transactions`, `POST /api/asry/claim-from-deposit`) and **`lib/asry/`**.
 
 **Policy reference:** [ASRY-TREASURY-AND-YIELD-PLAN.md](./ASRY-TREASURY-AND-YIELD-PLAN.md) (§0.1 deployment phases, §0.2 critical path, §16 implementation priorities).

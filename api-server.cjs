@@ -13,8 +13,7 @@ const bitcoinMessage = require("bitcoinjs-message");
 const nacl = require("tweetnacl");
 const { receiveStableConfirmAndReward } = require("./lib/asry/receive-confirm-and-reward.cjs");
 const { fetchWhirlpoolPoolFromRpc } = require("./lib/orca-whirlpool-onchain.cjs");
-const { tryHandleClawstr } = require("./clawstr/mount.cjs");
-const { tryHandleBulletin } = require("./clawstr/bulletin-mount.cjs");
+const { tryHandleNostr } = require("./lib/nostr-api-routes.cjs");
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
@@ -683,26 +682,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    if (await tryHandleClawstr(req, res, path, url)) return;
+    if (await tryHandleNostr(req, res, path, url)) return;
   } catch (e) {
-    console.error("[clawstr]", e);
+    console.error("[nostr-api]", e);
     if (!res.headersSent) {
       res.statusCode = 500;
-      res.end(JSON.stringify({ error_code: "CLAWSTR_ERROR", error: String(e && e.message ? e.message : e) }));
+      res.end(JSON.stringify({ error_code: "NOSTR_API_ERROR", error: String(e && e.message ? e.message : e) }));
     }
     return;
   }
-  try {
-    if (await tryHandleBulletin(req, res, path, url)) return;
-  } catch (e) {
-    console.error("[bulletin]", e);
-    if (!res.headersSent) {
-      res.statusCode = 500;
-      res.end(JSON.stringify({ error_code: "BULLETIN_ERROR", error: String(e && e.message ? e.message : e) }));
-    }
-    return;
-  }
-
   if (path === "/api/reserves" && req.method === "GET") {
     const btcKey = getBtcKey();
     const solKey = getSolanaKeypair();

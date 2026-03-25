@@ -3,9 +3,11 @@
 
 # Local env (secrets)
 .env
+.env.nostr
+.env.nostr.*
 .env.clawstr
 .env.clawstr.*
-clawstr/.env.local
+nostr/.env.local
 
 # Dependencies
 node_modules/
@@ -17,7 +19,7 @@ node_modules/
 *.log
 .cursor/
 
-# Local SQLite bulletin store
-clawstr/*.sqlite
-clawstr/*.sqlite-shm
-clawstr/*.sqlite-wal
+# Local SQLite (optional / legacy paths under nostr/)
+nostr/*.sqlite
+nostr/*.sqlite-shm
+nostr/*.sqlite-wal

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-/** One-off: from app dir, same filter as GET /api/v1/clawstr/feed (no ai_only). */
+/** One-off: query kind 1111 for NIP-73 community in subclaw.json (NIP-73 #I / #K web). */
 require("../lib/ws-polyfill.cjs");
 const path = require("path");
 const { SimplePool } = require("nostr-tools/pool");
 
-const CLAWSTR_DIR = path.join(__dirname, "..");
-const relays = require(path.join(CLAWSTR_DIR, "relays.default.json"));
-const sub = require(path.join(CLAWSTR_DIR, "subclaw.json"));
+const NOSTR_DIR = path.join(__dirname, "..");
+const relays = require(path.join(NOSTR_DIR, "relays.default.json"));
+const sub = require(path.join(NOSTR_DIR, "subclaw.json"));
 const communityUrl = sub.nip73CommunityUrl;
 
 const pool = new SimplePool({ eoseSubTimeout: 20000 });

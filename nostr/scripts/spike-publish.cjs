@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
- * Publish a Clawstr-shaped kind 1111 top-level post to recommended relays (local spike).
+ * Publish a NIP-73 kind 1111 top-level post to configured relays (local spike).
  *
- * Expects CLAWSTR_NSEC in repo-root .env.clawstr (or .env). Subclaw: clawstr/subclaw.json
+ * Expects NOSTR_NSEC in .env.nostr, .env.clawstr, or .env. Subclaw: nostr/subclaw.json
  *
- *   npm run clawstr:spike-publish
- *   npm run clawstr:spike-publish -- --dry-run
- *   npm run clawstr:spike-publish -- --content "Hello"
- *   npm run clawstr:spike-publish -- --ai
+ *   npm run nostr:spike-publish
+ *   npm run nostr:spike-publish -- --dry-run
+ *   npm run nostr:spike-publish -- --content "Hello"
+ *   npm run nostr:spike-publish -- --ai
  */
 require("../lib/ws-polyfill.cjs");
 const fs = require("fs");
 const path = require("path");
 const { finishEvent, nip19 } = require("nostr-tools");
 const { SimplePool } = require("nostr-tools/pool");
-const { loadClawstrRelatedEnv, REPO_ROOT } = require("../lib/load-env.cjs");
+const { loadNostrRelatedEnv, REPO_ROOT } = require("../lib/load-env.cjs");
 
-const CLAWSTR_DIR = path.join(__dirname, "..");
+const NOSTR_PKG_DIR = path.join(__dirname, "..");
 
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
@@ -36,12 +36,12 @@ function parseArgs(argv) {
       }
     } else if (a === "-h" || a === "--help") {
       console.log(`Usage:
-  npm run clawstr:spike-publish
-  npm run clawstr:spike-publish -- --dry-run
-  npm run clawstr:spike-publish -- --content "Your text"
-  npm run clawstr:spike-publish -- --ai   # add NIP-32 AI agent labels
+  npm run nostr:spike-publish
+  npm run nostr:spike-publish -- --dry-run
+  npm run nostr:spike-publish -- --content "Your text"
+  npm run nostr:spike-publish -- --ai   # add NIP-32 AI agent labels
 
-Loads CLAWSTR_NSEC from .env.clawstr (or .env). Uses clawstr/subclaw.json + clawstr/relays.default.json.`);
+Loads NOSTR_NSEC (or legacy CLAWSTR_NSEC) from env. Uses nostr/subclaw.json + nostr/relays.default.json.`);
       process.exit(0);
     }
   }
@@ -51,37 +51,37 @@ Loads CLAWSTR_NSEC from .env.clawstr (or .env). Uses clawstr/subclaw.json + claw
 function secretKeyFromNsec(nsec) {
   const decoded = nip19.decode(nsec);
   if (decoded.type !== "nsec") {
-    throw new Error("CLAWSTR_NSEC must be a bech32 nsec");
+    throw new Error("NOSTR_NSEC must be a bech32 nsec");
   }
   return decoded.data;
 }
 
 async function main() {
-  loadClawstrRelatedEnv();
+  loadNostrRelatedEnv();
   const opts = parseArgs(process.argv.slice(2));
 
-  const nsec = process.env.CLAWSTR_NSEC;
+  const nsec = String(process.env.NOSTR_NSEC || process.env.CLAWSTR_NSEC || "").trim();
   if (!nsec) {
     console.error(
-      "Missing CLAWSTR_NSEC. Set it in .env.clawstr (see npm run clawstr:generate-account)."
+      "Missing NOSTR_NSEC. Set it in .env.nostr or secrets (see npm run nostr:generate-account)."
     );
     process.exit(1);
   }
 
-  const sub = readJson(path.join(CLAWSTR_DIR, "subclaw.json"));
+  const sub = readJson(path.join(NOSTR_PKG_DIR, "subclaw.json"));
   if (!sub.nip73CommunityUrl || typeof sub.nip73CommunityUrl !== "string") {
-    console.error("Invalid clawstr/subclaw.json: expected nip73CommunityUrl");
+    console.error("Invalid nostr/subclaw.json: expected nip73CommunityUrl");
     process.exit(1);
   }
   const communityUrl = sub.nip73CommunityUrl;
 
-  const relays = readJson(path.join(CLAWSTR_DIR, "relays.default.json"));
+  const relays = readJson(path.join(NOSTR_PKG_DIR, "relays.default.json"));
   if (!Array.isArray(relays) || relays.length === 0) {
-    console.error("Invalid clawstr/relays.default.json");
+    console.error("Invalid nostr/relays.default.json");
     process.exit(1);
   }
 
-  const defaultContent = `Solana Agent · Clawstr spike (${sub.slug}) · ${new Date().toISOString()}`;
+  const defaultContent = `Solana Agent · Nostr spike (${sub.slug}) · ${new Date().toISOString()}`;
   const content = opts.content != null ? String(opts.content) : defaultContent;
 
   const tags = [
@@ -104,7 +104,7 @@ async function main() {
 
   const event = finishEvent(unsigned, sk);
 
-  console.log("Subclaw:", communityUrl);
+  console.log("Community URL:", communityUrl);
   console.log("Kind: 1111 · AI labels:", opts.aiLabels);
   console.log("Event id:", event.id);
   console.log("Content:", content);

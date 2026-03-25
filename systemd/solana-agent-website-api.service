@@ -1,0 +1,19 @@
+[Unit]
+Description=Solana Agent website HTTP API (proof of reserves, swap, Nostr, analytics)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/solana_agent
+# Optional secrets (BTC/SOL keys, Nostr, etc.) — create on droplet if needed
+EnvironmentFile=-/etc/solana-agent-website/secrets
+Environment=NODE_ENV=production
+Environment=API_PORT=3001
+# Resolves `node` from PATH (/usr/bin/node on most Ubuntu images)
+ExecStart=/bin/bash -c 'cd /var/www/solana_agent && exec node api-server.cjs'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

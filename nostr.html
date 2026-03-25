@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icon_dock.png" type="image/png" />
+    <title>Latest on Nostr — Solana Agent</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0d0d0f;
+        color: #e2e8f0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.5;
+      }
+      body { display: flex; min-height: 100vh; overflow: hidden; }
+      .site-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 14rem;
+        background: #121214;
+        border-right: 1px solid #1e1e24;
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+      }
+      .site-sidebar .logo { padding: 0 0.75rem 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1e1e24; }
+      .site-sidebar .logo img { height: 2rem; width: auto; display: block; }
+      .site-sidebar a {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.875rem;
+        color: #94a3b8; text-decoration: none;
+        transition: background 0.15s, color 0.15s;
+      }
+      .site-sidebar a:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+      .site-sidebar a.active { background: rgba(52,211,153,0.2); color: #34d399; }
+      .site-sidebar .sidebar-disclaimer { margin-top: auto; padding: 0.5rem 0.75rem 0; font-size: 0.75rem; }
+      .site-sidebar .sidebar-disclaimer a { color: #64748b; text-decoration: underline; display: inline; padding: 0; }
+      .site-sidebar .sidebar-version { padding: 0.25rem 0.75rem 0 0; font-size: 0.75rem; color: #64748b; border-top: 1px solid #1e1e24; padding-top: 0.75rem; }
+      .disclaimer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
+      .disclaimer-overlay.show { display: flex; }
+      .disclaimer-modal { max-width: 32rem; max-height: 85vh; overflow-y: auto; background: #121214; border: 1px solid #2a2a30; border-radius: 0.75rem; padding: 1.5rem; color: #cbd5e1; font-size: 0.875rem; }
+      .disclaimer-modal h2 { font-size: 1rem; color: #e2e8f0; margin: 0 0 1rem; }
+      .disclaimer-modal p { margin: 0 0 0.75rem; }
+      .disclaimer-modal .disclaimer-close { display: block; margin-top: 1rem; padding: 0.5rem 1rem; background: #1e1e24; border: 1px solid #2a2a30; border-radius: 0.5rem; color: #34d399; font-size: 0.875rem; cursor: pointer; }
+      .site-main { margin-left: 14rem; flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; padding: 1.5rem; }
+      .nostr-page-head { margin-bottom: 1rem; max-width: 48rem; }
+      .nostr-page-head h1 { font-size: 1.35rem; font-weight: 600; margin: 0; color: #f1f5f9; }
+      .nostr-wrap { max-width: 48rem; width: 100%; }
+      @media (max-width: 900px) {
+        body { display: block; overflow: auto; height: auto; }
+        .site-sidebar { position: static; width: 100%; border-right: none; border-bottom: 1px solid #1e1e24; flex-direction: row; flex-wrap: wrap; }
+        .site-sidebar .logo { flex: 1 0 100%; }
+        .site-main { margin-left: 0; }
+      }
+      .nostr-panel {
+        border: 1px solid #1e1e24;
+        border-radius: 0.75rem;
+        background: #121214;
+        display: flex;
+        flex-direction: column;
+        min-height: 28rem;
+        max-height: calc(100vh - 8rem);
+      }
+      .nostr-panel-hd {
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid #1e1e24;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .nostr-panel-hd h2 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #e2e8f0; }
+      .nostr-panel-hd .sub { margin: 0.25rem 0 0; font-size: 0.72rem; color: #64748b; line-height: 1.4; }
+      .nostr-panel-hd button {
+        flex-shrink: 0;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.5rem;
+        border: none;
+        background: rgba(255,255,255,0.1);
+        color: #e2e8f0;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .nostr-panel-hd button:disabled { opacity: 0.45; cursor: not-allowed; }
+      .nostr-panel-hd button:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+      .nostr-err {
+        margin: 0.5rem 0.85rem 0;
+        padding: 0.45rem 0.6rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(245,158,11,0.35);
+        background: rgba(245,158,11,0.1);
+        color: #fcd34d;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .nostr-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.75rem;
+        min-height: 0;
+      }
+      .nostr-post {
+        border-radius: 1rem;
+        border: 1px solid #2a2a30;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.65rem;
+        background: #141418;
+      }
+      .nostr-post-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem 0.65rem;
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+      }
+      .nostr-post-meta .num { font-weight: 600; color: #94a3b8; }
+      .nostr-post-meta a.ev { margin-left: auto; font-family: ui-monospace, monospace; color: #34d399; text-decoration: none; }
+      .nostr-post-meta a.ev:hover { text-decoration: underline; }
+      .nostr-post-body {
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .nostr-panel-ft {
+        padding: 0.5rem 0.85rem;
+        border-top: 1px solid #1e1e24;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .nostr-panel-ft button {
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.5rem;
+        border: none;
+        background: rgba(255,255,255,0.1);
+        color: #e2e8f0;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .nostr-panel-ft button:disabled { opacity: 0.4; cursor: not-allowed; }
+      .nostr-panel-ft .pg { font-size: 0.75rem; color: #64748b; }
+      .nostr-empty { text-align: center; color: #64748b; font-size: 0.85rem; padding: 2rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <aside class="site-sidebar" role="navigation">
+      <div class="logo"><a href="index.html"><img src="solanaagent_rec.png" alt="Solana Agent" /></a></div>
+      <a href="index.html">Home</a>
+      <a href="treasury.html">Treasury</a>
+      <a href="sabtc.html">SABTC</a>
+      <a href="saeth.html">SAETH</a>
+      <a href="asry.html">ASRY</a>
+      <a href="reserves-absr.html">ABSR</a>
+      <a href="reserves-bitcoin.html">Bitcoin</a>
+      <a href="reserves-solana.html">Solana</a>
+      <a href="reserves-declaration.html">Declaration</a>
+      <a href="proof-of-reserves.html">Proof of Reserves</a>
+      <a href="api.html">API</a>
+      <a href="nostr.html" class="active">Latest on Nostr</a>
+      <a href="visitors.html">Visitors</a>
+      <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
+      <div class="sidebar-version">V 1.1.0 <span id="sidebar-version-date"></span></div>
+    </aside>
+    <div class="disclaimer-overlay" id="disclaimer-overlay" aria-hidden="true">
+      <div class="disclaimer-modal" role="dialog" aria-labelledby="disclaimer-title">
+        <h2 id="disclaimer-title">Disclaimer</h2>
+        <p>Content is relay-sourced and informational only.</p>
+        <button type="button" class="disclaimer-close" id="disclaimer-close">Close</button>
+      </div>
+    </div>
+    <main class="site-main">
+      <div class="nostr-page-head">
+        <h1>Latest on Nostr</h1>
+      </div>
+      <div class="nostr-wrap">
+        <section class="nostr-panel" aria-labelledby="feed-h">
+          <div class="nostr-panel-hd">
+            <div>
+              <h2 id="feed-h">Topic feed</h2>
+              <p class="sub">Kind 1111 — <code>l</code> tag OR filter: ai | blockchain | defi.</p>
+            </div>
+            <button type="button" id="btn-refresh-feed">Refresh</button>
+          </div>
+          <div id="err-feed" class="nostr-err" hidden></div>
+          <div id="scroll-feed" class="nostr-scroll" role="feed"></div>
+          <div class="nostr-panel-ft">
+            <button type="button" id="btn-prev-feed">Prev</button>
+            <span class="pg" id="pg-feed">Page 1</span>
+            <button type="button" id="btn-next-feed">Next</button>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var d = new Date();
+        var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var el = document.getElementById("sidebar-version-date");
+        if (el) el.textContent = d.getDate() + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+      })();
+      (function () {
+        var link = document.getElementById("disclaimer-link");
+        var overlay = document.getElementById("disclaimer-overlay");
+        var closeBtn = document.getElementById("disclaimer-close");
+        if (link) link.addEventListener("click", function (e) { e.preventDefault(); overlay.classList.add("show"); overlay.setAttribute("aria-hidden", "false"); });
+        function closeModal() { overlay.classList.remove("show"); overlay.setAttribute("aria-hidden", "true"); }
+        if (closeBtn) closeBtn.addEventListener("click", closeModal);
+        if (overlay) overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
+      })();
+
+      var PROD_ORIGIN = "https://www.solanaagent.app";
+      /**
+       * Full URL for /api/nostr/* so we never hit nginx static/HTML fallback.
+       * Apex solanaagent.app often lacks a working /api proxy; use www for JSON.
+       * Local dev: same-origin relative URL.
+       */
+      function nostrApiUrl(pathWithQuery) {
+        try {
+          var h = (location.hostname || "").toLowerCase();
+          if (h === "localhost" || h === "127.0.0.1") return pathWithQuery;
+          if (location.protocol === "file:" || !h) return PROD_ORIGIN + pathWithQuery;
+          if (h === "solanaagent.app") return PROD_ORIGIN + pathWithQuery;
+        } catch (e) {}
+        return pathWithQuery;
+      }
+
+      var PAGE_SIZE = 10;
+
+      function formatIso(ts) {
+        if (ts == null) return "—";
+        var n = Number(ts);
+        if (!isFinite(n)) return "—";
+        return new Date(n * 1000).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+      }
+      function shortHex(hex, head, tail) {
+        head = head || 8; tail = tail || 6;
+        var s = String(hex || "");
+        if (s.length <= head + tail + 1) return s;
+        return s.slice(0, head) + "…" + s.slice(-tail);
+      }
+      function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+      }
+      function escAttr(s) {
+        return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      }
+
+      function parseJsonResponse(res, text, errEl) {
+        var st = res.status || 0;
+        if (st >= 502 && st <= 504) {
+          errEl.hidden = false;
+          errEl.textContent =
+            "API unreachable (HTTP " +
+            st +
+            " Bad Gateway). The Node API on the server may be stopped—wait a minute and tap Refresh. If it persists, the host must run: systemctl restart solana-agent-website-api";
+          return null;
+        }
+        var t = (text == null ? "" : String(text)).trim();
+        if (!t) {
+          errEl.hidden = false;
+          errEl.textContent = "Empty response from API (HTTP " + st + ").";
+          return null;
+        }
+        try {
+          return JSON.parse(t);
+        } catch (e) {
+          errEl.hidden = false;
+          var first = t.charAt(0);
+          var hint =
+            first === "<"
+              ? st >= 400
+                ? "Gateway returned an HTML error page (HTTP " +
+                  st +
+                  ") instead of JSON—usually nginx cannot reach the API on port 3001. Open https://www.solanaagent.app/nostr.html or ask the operator to fix systemd/nginx."
+                : "Server returned HTML instead of JSON for /api/. If you use solanaagent.app (no www), use https://www.solanaagent.app — or proxy /api/ to the Node service."
+              : "Not JSON (HTTP " + st + "): " + t.slice(0, 160).replace(/\s+/g, " ");
+          errEl.textContent = hint;
+          return null;
+        }
+      }
+
+      function TopicFeedPanel() {
+        this.path = "/api/nostr/feed";
+        this.queryExtras = "ai_only=true";
+        this.page = 0;
+        this.loading = false;
+        this.cache = {};
+        this.errEl = document.getElementById("err-feed");
+        this.scrollEl = document.getElementById("scroll-feed");
+        this.pgEl = document.getElementById("pg-feed");
+        this.btnPrev = document.getElementById("btn-prev-feed");
+        this.btnNext = document.getElementById("btn-next-feed");
+        this.btnRefresh = document.getElementById("btn-refresh-feed");
+        var self = this;
+        this.btnPrev.addEventListener("click", function () { self.goPrev(); });
+        this.btnNext.addEventListener("click", function () { self.goNext(); });
+        this.btnRefresh.addEventListener("click", function () { self.refresh(); });
+      }
+      TopicFeedPanel.prototype.getRow = function (i) {
+        return this.cache[i];
+      };
+      TopicFeedPanel.prototype.fetchPage = function (pageIndex, force) {
+        var self = this;
+        if (!force && this.getRow(pageIndex)) return Promise.resolve(this.getRow(pageIndex));
+        var until;
+        if (pageIndex > 0) {
+          var prev = this.getRow(pageIndex - 1);
+          if (!prev || prev.next_until == null) {
+            this.errEl.hidden = false;
+            this.errEl.textContent = "Cannot load next page (no older cursor).";
+            return Promise.resolve(null);
+          }
+          until = prev.next_until;
+        }
+        var params = new URLSearchParams("limit=" + PAGE_SIZE);
+        if (this.queryExtras) {
+          new URLSearchParams(this.queryExtras).forEach(function (v, k) { params.set(k, v); });
+        }
+        if (until != null) params.set("until", String(until));
+        var pathAndQuery = this.path + "?" + params.toString();
+        var primaryUrl = nostrApiUrl(pathAndQuery);
+        var fetchOpts = { headers: { Accept: "application/json" }, credentials: "omit" };
+        function consumeResponse(r, text) {
+          var data = parseJsonResponse(r, text, self.errEl);
+          if (data == null) return null;
+          if (!r.ok || data.ok === false) {
+            self.errEl.hidden = false;
+            self.errEl.textContent = data.error || data.code || "Request failed (HTTP " + r.status + ")";
+            return null;
+          }
+          self.errEl.hidden = true;
+          var posts = Array.isArray(data.posts) ? data.posts : [];
+          var row = { posts: posts, next_until: data.next_until != null ? data.next_until : null };
+          self.cache[pageIndex] = row;
+          return row;
+        }
+        return fetch(primaryUrl, fetchOpts)
+          .then(function (r) {
+            return r.text().then(function (text) {
+              var row = consumeResponse(r, text);
+              if (row != null) return row;
+              var t = (text || "").trim();
+              if (t.charAt(0) === "<" && primaryUrl.indexOf(PROD_ORIGIN) !== 0) {
+                self.errEl.hidden = true;
+                return fetch(PROD_ORIGIN + pathAndQuery, fetchOpts).then(function (r2) {
+                  return r2.text().then(function (text2) {
+                    return consumeResponse(r2, text2);
+                  });
+                });
+              }
+              return null;
+            });
+          })
+          .catch(function (e) {
+            self.errEl.hidden = false;
+            self.errEl.textContent = e.message || String(e);
+            return null;
+          });
+      };
+      TopicFeedPanel.prototype.render = function () {
+        var row = this.getRow(this.page);
+        var posts = row && row.posts ? row.posts : [];
+        var self = this;
+        if (this.loading && posts.length === 0) {
+          this.scrollEl.innerHTML = '<div class="nostr-empty">Loading…</div>';
+          return;
+        }
+        if (posts.length === 0) {
+          this.scrollEl.innerHTML = '<div class="nostr-empty">No posts.</div>';
+          return;
+        }
+        this.scrollEl.innerHTML = posts
+          .map(function (p, i) {
+            var n = self.page * PAGE_SIZE + i + 1;
+            var authorLine = p.pubkey ? "Author " + shortHex(p.pubkey) : "Post";
+            return (
+              '<article class="nostr-post"><div class="nostr-post-meta"><span class="num">#' +
+              n +
+              "</span><time>" +
+              esc(formatIso(p.created_at)) +
+              '</time><span>·</span><span style="font-family:ui-monospace,monospace;font-size:0.65rem;max-width:140px;overflow:hidden;text-overflow:ellipsis">' +
+              esc(authorLine) +
+              '</span><a class="ev" target="_blank" rel="noopener noreferrer" href="https://nostr.band/e/' +
+              escAttr(p.id) +
+              '">' +
+              esc(shortHex(p.id, 6, 4)) +
+              "</a></div><div class=\"nostr-post-body\">" +
+              esc(p.content || "") +
+              "</div></article>"
+            );
+          })
+          .join("");
+        this.pgEl.textContent = "Page " + (this.page + 1);
+        var canNext = !!(row && row.next_until != null);
+        this.btnNext.disabled = !canNext || this.loading;
+        this.btnPrev.disabled = this.page <= 0 || this.loading;
+      };
+      TopicFeedPanel.prototype.setLoading = function (v) {
+        this.loading = v;
+        this.btnRefresh.disabled = v;
+        this.render();
+      };
+      TopicFeedPanel.prototype.loadInitial = function () {
+        var self = this;
+        this.setLoading(true);
+        this.page = 0;
+        this.cache = {};
+        return this.fetchPage(0, true).then(function () {
+          self.setLoading(false);
+          self.render();
+        });
+      };
+      TopicFeedPanel.prototype.refresh = function () {
+        return this.loadInitial();
+      };
+      TopicFeedPanel.prototype.goNext = function () {
+        var self = this;
+        var next = this.page + 1;
+        this.setLoading(true);
+        return this.fetchPage(next, false).then(function (row) {
+          if (row) self.page = next;
+          self.setLoading(false);
+          self.render();
+        });
+      };
+      TopicFeedPanel.prototype.goPrev = function () {
+        if (this.page <= 0) return;
+        this.page -= 1;
+        this.render();
+      };
+
+      var feed = new TopicFeedPanel();
+      feed.loadInitial();
+    </script>
+  </body>
+</html>

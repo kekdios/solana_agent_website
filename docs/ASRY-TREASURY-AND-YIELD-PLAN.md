@@ -1,5 +1,7 @@
 # ASRY — Treasury plan (non-staking yield, no external arbitrage)
 
+**Last reviewed:** March 2026.
+
 **Status:** Policy draft — not a promise of returns or redemption value.
 
 **`policy_version`:** `2026-03-19` (bump when material rules change; agents should compare to **`GET /api/asry-info`** on the live site, or doc hash). A dedicated `asry-health` URL is not implemented yet—use **`/api/asry-info`**.

@@ -1,8 +1,9 @@
 /**
- * Env for Clawstr scripts and API mount:
+ * Env for Nostr scripts and /api/nostr routes:
  * 1. Repo-root .env (optional, local)
- * 2. Repo-root .env.clawstr (optional, local)
- * 3. Droplet secrets file (if present) — overrides, so /etc/… wins over stray .env on server
+ * 2. Repo-root .env.nostr (optional)
+ * 3. Repo-root .env.clawstr (optional, legacy filename)
+ * 4. Droplet secrets file (if present) — overrides
  *
  * Supports KEY=value and export KEY=value. Does not expand shell variables.
  */
@@ -20,8 +21,6 @@ function loadEnvFile(filePath, overrideExisting) {
   try {
     text = fs.readFileSync(filePath, "utf8");
   } catch (e) {
-    // Droplet API often runs as non-root; systemd may use EnvironmentFile= same path
-    // (vars already in process.env) while the Node user cannot read the file — skip merge.
     if (e && (e.code === "EACCES" || e.code === "EPERM" || e.code === "ENOENT")) return;
     throw e;
   }
@@ -41,14 +40,13 @@ function loadEnvFile(filePath, overrideExisting) {
 }
 
 /**
- * Load .env, .env.clawstr, then droplet secrets file (when that file exists).
- * If systemd already sets CLAWSTR_* via EnvironmentFile= the same path, values match;
- * loading again is idempotent for those keys when override runs last.
+ * Load .env, .env.nostr, legacy .env.clawstr, then droplet secrets (when readable).
  */
-function loadClawstrRelatedEnv() {
+function loadNostrRelatedEnv() {
   loadEnvFile(path.join(REPO_ROOT, ".env"), false);
+  loadEnvFile(path.join(REPO_ROOT, ".env.nostr"), false);
   loadEnvFile(path.join(REPO_ROOT, ".env.clawstr"), false);
   loadEnvFile(DROPLET_SECRETS, true);
 }
 
-module.exports = { REPO_ROOT, DROPLET_SECRETS, loadEnvFile, loadClawstrRelatedEnv };
+module.exports = { REPO_ROOT, DROPLET_SECRETS, loadEnvFile, loadNostrRelatedEnv };

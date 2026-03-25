@@ -1,4 +1,26 @@
-# Treasury mint timer (SABTC + SAETH)
+# Systemd units for the droplet
+
+## Website HTTP API (`solana-agent-website-api`)
+
+Deploy copies `solana-agent-website-api.service` to `/var/www/solana_agent/systemd/` and the deploy script installs it to `/etc/systemd/system/`, runs `daemon-reload`, `enable`, and restarts the service.
+
+Manual install / fix:
+
+```bash
+sudo cp /var/www/solana_agent/systemd/solana-agent-website-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now solana-agent-website-api
+systemctl is-active solana-agent-website-api
+curl -sf http://127.0.0.1:3001/api/reserves | head -c 200
+```
+
+- **Listen:** `127.0.0.1:3001` (nginx should `proxy_pass` `/api/` here). Override with `API_PORT` in the unit or `EnvironmentFile`.
+- **Logs:** `journalctl -u solana-agent-website-api -n 80 --no-pager`
+- **Secrets:** optional `/etc/solana-agent-website/secrets` (same as treasury mint).
+
+---
+
+## Treasury mint timer (SABTC + SAETH)
 
 Install once on the droplet (after deploy has copied files to `/var/www/solana_agent/systemd/`):
 
@@ -16,4 +38,4 @@ systemctl list-timers solana-agent-treasury-mint.timer
 - **Logs:** `journalctl -u solana-agent-treasury-mint.service -f`
 - **Manual run:** `sudo systemctl start solana-agent-treasury-mint.service`
 
-The main **HTTP API** on the droplet is usually restarted as **`solana-agent-website-api`** (see `deploy-website-to-droplet.sh`). That is separate from this treasury mint timer.
+The **HTTP API** and the **treasury mint timer** are independent services; both can use `/etc/solana-agent-website/secrets` when present.

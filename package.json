@@ -1,7 +1,7 @@
 {
   "name": "solana-agent-website-api",
-  "version": "1.0.0",
-  "description": "Solana Agent website HTTP API (reserves, swap, treasury, Orca proxy, Clawstr, bulletin, analytics)",
+  "version": "1.1.0",
+  "description": "Solana Agent website HTTP API (reserves, swap, treasury, Orca proxy, Nostr feeds, analytics)",
   "type": "commonjs",
   "main": "api-server.cjs",
   "scripts": {
@@ -21,14 +21,13 @@
     "mint:token": "node scripts/mint-token-human.cjs",
     "treasury:mint-scheduled": "node scripts/mint-treasury-sabtc-saeth-scheduled.cjs",
     "mcp": "node mcp-server.cjs",
-    "clawstr:generate-account": "node clawstr/scripts/generate-account.cjs",
-    "clawstr:spike-publish": "node clawstr/scripts/spike-publish.cjs"
+    "nostr:generate-account": "node nostr/scripts/generate-account.cjs",
+    "nostr:spike-publish": "node nostr/scripts/spike-publish.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.4",
-    "better-sqlite3": "^12.8.0",
     "bitcoinjs-lib": "^5.2.0",
     "bitcoinjs-message": "^2.2.0",
     "bs58": "^6.0.0",

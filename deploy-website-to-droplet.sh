@@ -3,7 +3,7 @@
 # Run from the website directory (where this script lives). Requires .env here or in parent.
 # Requires: .env with DROPLET_IP, DROPLET_SSH_PASSWORD; optional CERTBOT_EMAIL for Let's Encrypt.
 # Copies api-server.cjs + package*.json to site root; data/.gitkeep → data/; runs ensure-analytics-data-dir.sh;
-# restarts systemd unit solana-agent-website-api. scp -r clawstr/ overwrites remote bulletin DB — see clawstr/README.md.
+# restarts systemd unit solana-agent-website-api. scp -r nostr/ overwrites remote nostr/ tree — see nostr/README.md.
 #
 # Update only (site already set up):  ./deploy-website-to-droplet.sh
 #   or:  UPDATE_ONLY=1 ./deploy-website-to-droplet.sh
@@ -68,7 +68,7 @@ send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
 # 2. SCP website files — split long file list (Tcl/expect truncates very long spawn lines; breaks names like ETH.png)
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/treasury.html $env(CONTENT_DIR)/sabtc.html $env(CONTENT_DIR)/saeth.html $env(CONTENT_DIR)/saeth-sausd.html $env(CONTENT_DIR)/visitors.html $env(CONTENT_DIR)/site-analytics.js $env(CONTENT_DIR)/pool-fee-format.js $env(CONTENT_DIR)/treasury-mint-schedule.json $env(CONTENT_DIR)/asry.html $env(CONTENT_DIR)/reserves-bitcoin.html $env(CONTENT_DIR)/reserves-absr.html $env(CONTENT_DIR)/reserves-solana.html $env(CONTENT_DIR)/reserves-declaration.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/clawstr.html $env(CONTENT_DIR)/bulletin.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/icon_asry_nb.png $env(CONTENT_DIR)/icon_absr_nb.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/SOL.png $env(CONTENT_DIR)/USDC.png $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/index.html $env(CONTENT_DIR)/treasury.html $env(CONTENT_DIR)/sabtc.html $env(CONTENT_DIR)/saeth.html $env(CONTENT_DIR)/saeth-sausd.html $env(CONTENT_DIR)/visitors.html $env(CONTENT_DIR)/site-analytics.js $env(CONTENT_DIR)/pool-fee-format.js $env(CONTENT_DIR)/treasury-mint-schedule.json $env(CONTENT_DIR)/asry.html $env(CONTENT_DIR)/reserves-bitcoin.html $env(CONTENT_DIR)/reserves-absr.html $env(CONTENT_DIR)/reserves-solana.html $env(CONTENT_DIR)/reserves-declaration.html $env(CONTENT_DIR)/proof-of-reserves.html $env(CONTENT_DIR)/api.html $env(CONTENT_DIR)/nostr.html $env(CONTENT_DIR)/solanaagent_rec.png $env(CONTENT_DIR)/loading-animation.gif $env(CONTENT_DIR)/icon_dock.png $env(CONTENT_DIR)/icon_asry_nb.png $env(CONTENT_DIR)/icon_absr_nb.png $env(CONTENT_DIR)/logo_btc_nb.png $env(CONTENT_DIR)/SOL.png $env(CONTENT_DIR)/USDC.png $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
@@ -93,7 +93,7 @@ expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.service $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.timer $env(CONTENT_DIR)/systemd/README.md $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/systemd/
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/systemd/solana-agent-website-api.service $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.service $env(CONTENT_DIR)/systemd/solana-agent-treasury-mint.timer $env(CONTENT_DIR)/systemd/README.md $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/systemd/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
@@ -103,12 +103,12 @@ expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/lib/orca-whirlpool-onchain.cjs $env(CONTENT_DIR)/lib/whirlpool-fee-format.cjs $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/lib/
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/lib/orca-whirlpool-onchain.cjs $env(CONTENT_DIR)/lib/whirlpool-fee-format.cjs $env(CONTENT_DIR)/lib/nostr-api-routes.cjs $env(CONTENT_DIR)/lib/nostr-public-feed.cjs $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/lib/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
-spawn scp -r -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/clawstr $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+spawn scp -r -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/nostr $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
@@ -151,7 +151,7 @@ EXPECT_SCRIPT
 export DROPLET_IP DROPLET_SSH_PASSWORD REMOTE_USER
 expect << 'RESTART_SCRIPT'
 set timeout 180
-spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "cd /var/www/solana_agent && bash scripts/ensure-analytics-data-dir.sh /var/www/solana_agent && npm install --omit=dev && systemctl restart solana-agent-website-api && systemctl is-active solana-agent-website-api"
+spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(REMOTE_USER)@$env(DROPLET_IP) "cd /var/www/solana_agent && cp -f systemd/solana-agent-website-api.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable solana-agent-website-api && bash scripts/ensure-analytics-data-dir.sh /var/www/solana_agent && npm install --omit=dev && systemctl restart solana-agent-website-api && sleep 2 && systemctl is-active solana-agent-website-api && curl -sf -o /dev/null http://127.0.0.1:3001/api/reserves && echo CURL_OK"
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof

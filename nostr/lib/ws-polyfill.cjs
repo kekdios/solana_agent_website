@@ -5,6 +5,6 @@ if (typeof globalThis.WebSocket === "undefined") {
   try {
     globalThis.WebSocket = require("ws");
   } catch (_) {
-    /* ws not installed — Clawstr relay calls will fail at runtime */
+    /* ws not installed — Nostr relay calls will fail at runtime */
   }
 }

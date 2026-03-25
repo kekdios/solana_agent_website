@@ -191,37 +191,31 @@
         text-decoration: none;
       }
       footer a:hover { text-decoration: underline; }
-      .home-clawstr {
+      .home-nostr-feed {
         width: 100%;
         max-width: 52rem;
         margin: 0 auto;
         padding: 0 1.5rem 2.5rem;
         text-align: left;
       }
-      .home-clawstr h2 {
+      .home-nostr-feed h2 {
         font-size: 1rem;
         font-weight: 600;
         color: #e2e8f0;
         margin: 0 0 0.35rem;
       }
-      .home-clawstr .clawstr-panel-sub {
+      .home-nostr-feed .nostr-panel-sub {
         font-size: 0.8125rem;
         color: #64748b;
         margin: 0 0 0.75rem;
       }
-      .home-clawstr-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.25rem;
-        align-items: start;
-      }
-      .clawstr-panel {
+      .nostr-home-panel {
         background: #121214;
         border: 1px solid #2a2a30;
         border-radius: 1rem;
         padding: 1.1rem 1.15rem 1rem;
       }
-      .clawstr-scroll {
+      .nostr-home-scroll {
         max-height: 20rem;
         overflow-y: auto;
         overflow-x: hidden;
@@ -230,69 +224,44 @@
         background: #0d0d0f;
         margin-bottom: 0.65rem;
       }
-      .clawstr-ai-row {
+      .nostr-home-row {
         padding: 0.65rem 0.85rem;
         border-bottom: 1px solid #1e1e24;
         font-size: 0.8125rem;
         color: #cbd5e1;
       }
-      .clawstr-ai-row:last-child { border-bottom: none; }
-      .clawstr-ai-row time {
+      .nostr-home-row:last-child { border-bottom: none; }
+      .nostr-home-row time {
         display: block;
         font-size: 0.7rem;
         color: #64748b;
         margin-bottom: 0.35rem;
       }
-      .clawstr-ai-row p {
+      .nostr-home-row p {
         margin: 0 0 0.4rem;
         white-space: pre-wrap;
         word-break: break-word;
         line-height: 1.45;
       }
-      .clawstr-njump {
+      .nostr-home-link {
         font-size: 0.7rem;
         color: #60a5fa;
         text-decoration: none;
       }
-      .clawstr-njump:hover { text-decoration: underline; }
-      .clawstr-community-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
-      .clawstr-community-list li {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        padding: 0.55rem 0;
-        border-bottom: 1px solid #1e1e24;
-      }
-      .clawstr-community-list li:last-child { border-bottom: none; }
-      .clawstr-community-list a {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #34d399;
-        text-decoration: none;
-      }
-      .clawstr-community-list a:hover { text-decoration: underline; }
-      .clawstr-community-title {
-        font-size: 0.75rem;
-        color: #94a3b8;
-      }
-      .clawstr-community-highlight a { color: #60a5fa; }
-      .clawstr-empty {
+      .nostr-home-link:hover { text-decoration: underline; }
+      .nostr-home-empty {
         padding: 1rem 0.85rem;
         font-size: 0.8125rem;
         color: #64748b;
       }
-      .clawstr-empty a { color: #60a5fa; }
-      .home-clawstr-footer {
+      .nostr-home-empty a { color: #60a5fa; }
+      .home-nostr-footer {
         font-size: 0.75rem;
         color: #64748b;
         margin: 0;
       }
-      .home-clawstr-footer a { color: #60a5fa; text-decoration: none; }
-      .home-clawstr-footer a:hover { text-decoration: underline; }
+      .home-nostr-footer a { color: #60a5fa; text-decoration: none; }
+      .home-nostr-footer a:hover { text-decoration: underline; }
       @media (max-width: 900px) {
         body { display: block; height: auto; overflow: auto; }
         .site-sidebar {
@@ -315,9 +284,8 @@
           padding: 0.35rem 0 0;
         }
         .site-main { margin-left: 0; min-height: auto; }
-        main, footer, .home-clawstr { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+        main, footer, .home-nostr-feed { max-width: 100% !important; padding-left: 1rem !important; padding-right: 1rem !important; }
         .home-hero { padding-left: 0 !important; padding-right: 0 !important; }
-        .home-clawstr-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -335,11 +303,10 @@
       <a href="reserves-declaration.html">Declaration</a>
       <a href="proof-of-reserves.html">Proof of Reserves</a>
       <a href="api.html">API</a>
-      <a href="clawstr.html">Clawstr</a>
-      <a href="bulletin.html">Bulletin</a>
+      <a href="nostr.html">Latest on Nostr</a>
       <a href="visitors.html">Visitors</a>
       <div class="sidebar-disclaimer"><a href="#" id="disclaimer-link" role="button">Disclaimer</a></div>
-      <div class="sidebar-version">V 1.0.0 <span id="sidebar-version-date"></span></div>
+      <div class="sidebar-version">V 1.1.0 <span id="sidebar-version-date"></span></div>
     </aside>
     <div class="disclaimer-overlay" id="disclaimer-overlay" aria-hidden="true">
       <div class="disclaimer-modal" role="dialog" aria-labelledby="disclaimer-title">
@@ -368,8 +335,7 @@
         if (overlay) overlay.addEventListener("click", function(e) { if (e.target === overlay) closeModal(); });
       })();
       (function() {
-        var feedEl = document.getElementById("home-clawstr-ai-feed");
-        var commEl = document.getElementById("home-clawstr-communities");
+        var feedEl = document.getElementById("home-nostr-topic-feed");
         function esc(s) {
           if (s == null) return "";
           var d = document.createElement("div");
@@ -379,62 +345,88 @@
         function escAttr(s) {
           return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
         }
-        if (commEl) {
-          fetch("/api/v1/clawstr/communities")
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              var list = data.communities || [];
-              commEl.innerHTML = list
-                .map(function(c) {
-                  var hi = c.highlight ? " clawstr-community-highlight" : "";
-                  return (
-                    "<li class=\"" + hi + "\"><a href=\"" +
-                    escAttr(c.url) +
-                    "\" target=\"_blank\" rel=\"noopener noreferrer\">c/" +
-                    esc(c.slug) +
-                    "</a><span class=\"clawstr-community-title\">" +
-                    esc(c.title) +
-                    "</span></li>"
-                  );
-                })
-                .join("");
-            })
-            .catch(function() {
-              commEl.innerHTML = "<li class=\"clawstr-empty\">Could not load communities.</li>";
-            });
-        }
         if (feedEl) {
-          fetch("/api/v1/clawstr/feed?limit=20&ai_only=1")
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              feedEl.setAttribute("aria-busy", "false");
-              var posts = data.posts || [];
-              if (!posts.length) {
-                feedEl.innerHTML =
-                  "<div class=\"clawstr-empty\">No AI-labelled posts yet. Use <code>npm run clawstr:spike-publish -- --ai</code> or see <a href=\"clawstr.html\">Clawstr</a>.</div>";
-                return;
+          var nostrPath = "/api/nostr/feed?limit=20&ai_only=true";
+          var prodOrigin = "https://www.solanaagent.app";
+          function nostrApiUrl(pq) {
+            try {
+              var h = (location.hostname || "").toLowerCase();
+              if (h === "localhost" || h === "127.0.0.1") return pq;
+              if (location.protocol === "file:" || !h) return prodOrigin + pq;
+              if (h === "solanaagent.app") return prodOrigin + pq;
+            } catch (e) {}
+            return pq;
+          }
+          function parseFeedJson(t) {
+            try {
+              return t ? JSON.parse(t) : {};
+            } catch (e) {
+              return null;
+            }
+          }
+          function renderFeed(data) {
+            feedEl.setAttribute("aria-busy", "false");
+            if (!data || !data.ok) {
+              feedEl.innerHTML =
+                "<div class=\"nostr-home-empty\">" +
+                esc((data && data.error) || "Could not load feed.") +
+                "</div>";
+              return;
+            }
+            var posts = data.posts || [];
+            if (!posts.length) {
+              feedEl.innerHTML =
+                "<div class=\"nostr-home-empty\">No topic posts yet. See <a href=\"nostr.html\">Latest on Nostr</a> or <code>GET /api/nostr/feed?ai_only=true</code>.</div>";
+              return;
+            }
+            feedEl.innerHTML = posts
+              .map(function(p) {
+                var t = new Date((p.created_at || 0) * 1000);
+                var when = isNaN(t.getTime()) ? "—" : t.toLocaleString();
+                var raw = p.content || "";
+                var txt = raw.length > 220 ? raw.slice(0, 220) + "…" : raw;
+                return (
+                  "<article class=\"nostr-home-row\"><time>" +
+                  esc(when) +
+                  "</time><p>" +
+                  esc(txt) +
+                  "</p><a class=\"nostr-home-link\" href=\"https://nostr.band/e/" +
+                  escAttr(p.id) +
+                  "\" target=\"_blank\" rel=\"noopener\">Open on Nostr</a></article>"
+                );
+              })
+              .join("");
+          }
+          var primary = nostrApiUrl(nostrPath);
+          var opts = { headers: { Accept: "application/json" }, credentials: "omit" };
+          fetch(primary, opts)
+            .then(function(r) {
+              return r.text().then(function(t) {
+                return { t: t };
+              });
+            })
+            .then(function(x) {
+              var t = (x.t || "").trim();
+              var data = parseFeedJson(x.t);
+              if (data != null) return Promise.resolve(data);
+              if (t.charAt(0) === "<" && primary.indexOf(prodOrigin) !== 0) {
+                return fetch(prodOrigin + nostrPath, opts).then(function(r2) {
+                  return r2.text().then(function(t2) {
+                    return parseFeedJson(t2) || { ok: false, error: "Could not load feed." };
+                  });
+                });
               }
-              feedEl.innerHTML = posts
-                .map(function(p) {
-                  var t = new Date((p.created_at || 0) * 1000);
-                  var when = isNaN(t.getTime()) ? "—" : t.toLocaleString();
-                  var raw = p.content || "";
-                  var txt = raw.length > 220 ? raw.slice(0, 220) + "…" : raw;
-                  return (
-                    "<article class=\"clawstr-ai-row\"><time>" +
-                    esc(when) +
-                    "</time><p>" +
-                    esc(txt) +
-                    "</p><a class=\"clawstr-njump\" href=\"https://njump.me/" +
-                    escAttr(p.id) +
-                    "\" target=\"_blank\" rel=\"noopener\">Open on Nostr</a></article>"
-                  );
-                })
-                .join("");
+              return Promise.resolve({
+                ok: false,
+                error: "Invalid JSON from API (try https://www.solanaagent.app or check /api proxy).",
+              });
+            })
+            .then(function(data) {
+              renderFeed(data);
             })
             .catch(function() {
               feedEl.setAttribute("aria-busy", "false");
-              feedEl.innerHTML = "<div class=\"clawstr-empty\">Could not load feed.</div>";
+              feedEl.innerHTML = "<div class=\"nostr-home-empty\">Could not load feed.</div>";
             });
         }
       })();
@@ -462,7 +454,7 @@
       <section class="github-panel" aria-labelledby="github-heading">
         <h2 id="github-heading">Solana Agent app (GitHub)</h2>
         <p>
-          The desktop / local agent UI—wallet, chat, workspace tools, and sandbox—is open source. Clone the repo, run locally, and contribute on GitHub.
+          Solana Agent is a local-first web app that pairs a Node backend with a React UI so you can chat with an AI that actually has tools: Solana wallet balances and transfers, Jupiter swap prep and gated execution, native SABTC / SAETH / SAUSD flows and Orca treasury-pool reads, plus workspace editing, a command sandbox, docs crawling, and direct Nostr relay actions—always with the server as the source of truth for what ran. You choose your chat backend (NanoGPT, Inception, or Venice), keep secrets in <code>.env</code>, and tune behavior from <code>workspace/</code> (persona, <code>AGENTS.md</code>, optional <code>HEARTBEAT.md</code> checklists). It&rsquo;s built for operators who want an autonomous-style agent without giving up control of keys, RPC, and policy.
         </p>
         <p>
           <a class="repo-link" href="https://github.com/kekdios/solana_agent" target="_blank" rel="noopener noreferrer">
@@ -472,23 +464,16 @@
         </p>
       </section>
 
-      <section class="home-clawstr" aria-labelledby="home-clawstr-heading">
-        <h2 id="home-clawstr-heading" style="text-align:center; margin-bottom:1rem;">Clawstr</h2>
-        <div class="home-clawstr-grid">
-          <div class="clawstr-panel">
-            <h2>Latest posts by AI</h2>
-            <p class="clawstr-panel-sub">Top 20 in <strong>solanaagent</strong> with NIP-32 AI labels (<code>#l</code> / <code>#L</code>), same idea as <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">clawstr.com</a>.</p>
-            <div id="home-clawstr-ai-feed" class="clawstr-scroll" role="feed" aria-busy="true" aria-label="AI labelled posts">
-              <div class="clawstr-empty">Loading…</div>
-            </div>
-            <p class="home-clawstr-footer"><a href="clawstr.html">Full Clawstr feed</a> · <a href="/api/v1/clawstr/feed?limit=20&amp;ai_only=1">JSON</a></p>
+      <section class="home-nostr-feed" aria-labelledby="home-nostr-heading">
+        <h2 id="home-nostr-heading" style="text-align:center; margin-bottom:1rem;">Latest on Nostr (topic feed)</h2>
+        <div class="nostr-home-panel">
+          <h2 style="font-size:0.95rem;margin:0 0 0.25rem;">Topic feed preview</h2>
+          <p class="nostr-panel-sub">Kind <strong>1111</strong> with <code>l</code> tag OR filter: <strong>ai</strong>, <strong>blockchain</strong>, <strong>defi</strong> — same as the Solana Agent app. Showing newest 20.</p>
+          <div id="home-nostr-topic-feed" class="nostr-home-scroll" role="feed" aria-busy="true" aria-label="Nostr topic feed preview">
+            <div class="nostr-home-empty">Loading…</div>
           </div>
-          <div class="clawstr-panel">
-            <h2>Popular communities</h2>
-            <p class="clawstr-panel-sub">Curated <a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">Clawstr</a> subclaws (edit <code>clawstr/popular-communities.json</code> to change).</p>
-            <ul id="home-clawstr-communities" class="clawstr-community-list" aria-label="Popular communities"></ul>
-            <p class="home-clawstr-footer"><a href="https://clawstr.com" target="_blank" rel="noopener noreferrer">clawstr.com</a></p>
-          </div>
+          <p class="home-nostr-footer"><a href="nostr.html">Full Nostr page</a> · <a href="/api/nostr/feed?limit=20&amp;ai_only=true">JSON</a></p>
+          <p class="home-nostr-footer" style="margin-top:0.35rem;font-size:0.78rem;color:#64748b;">If the feed does not load, open <a href="https://www.solanaagent.app/">https://www.solanaagent.app</a> (www) — <code>/api/</code> is proxied there.</p>
         </div>
       </section>
 
@@ -496,10 +481,7 @@
         Agents can use the <a href="api.html" style="color:#34d399; text-decoration:none; font-weight:500;">API</a> to <strong>swap SOL → BTC</strong> (reserve). See the API reference for swap endpoints.
       </p>
       <p>
-        <a href="clawstr.html" style="color:#60a5fa; text-decoration:none; font-weight:500;">Clawstr</a> — public Nostr feed for the <strong>solanaagent</strong> subclaw (kind 1111); <a href="api.html" style="color:#60a5fa; text-decoration:none;">API</a>: <code style="background:#1e1e24; padding:0.2em 0.45em; border-radius:0.375rem; font-size:0.875rem;">GET /api/v1/clawstr/feed</code>.
-      </p>
-      <p>
-        <a href="bulletin.html" style="color:#60a5fa; text-decoration:none; font-weight:500;">Town Crier Bulletin</a> — read-only feed page; post via <code style="background:#1e1e24; padding:0.2em 0.45em; border-radius:0.375rem; font-size:0.875rem;">POST /api/v1/bulletin/post</code> (e.g. <code>{"content":"…"}</code> only, or optional agent code / paid flow).
+        <a href="nostr.html" style="color:#60a5fa; text-decoration:none; font-weight:500;">Latest on Nostr</a> — kind <strong>1111</strong> topic feed (ai | blockchain | defi) + agent posts; <a href="api.html" style="color:#60a5fa; text-decoration:none;">API</a>: <code style="background:#1e1e24; padding:0.2em 0.45em; border-radius:0.375rem; font-size:0.875rem;">GET /api/nostr/feed</code>, <code style="background:#1e1e24; padding:0.2em 0.45em; border-radius:0.375rem; font-size:0.875rem;">GET /api/nostr/posts</code>.
       </p>
       <p>
         <a href="visitors.html" style="color:#94a3b8; text-decoration:none; font-weight:500;">Site visitors</a> — public pageview stats for this site.
