@@ -66,7 +66,7 @@ for (const asset of REQUIRED_ASSETS) {
 }
 const schedulePath = path.join(__dirname, "treasury-mint-schedule.json");
 check("treasury-mint-schedule.json exists", fs.existsSync(schedulePath));
-["loading-animation.gif", "logo_btc_nb.png"].forEach((asset) => {
+["loading-animation.gif", "logo_btc_nb.png", "icon_sausd.png"].forEach((asset) => {
   const p = path.join(__dirname, asset);
   if (fs.existsSync(p)) console.log("  OK  ", asset + " exists");
 });

@@ -73,7 +73,7 @@ expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
 
-spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/SAUSD.svg $env(CONTENT_DIR)/BTC.png $env(CONTENT_DIR)/ETH.png $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
+spawn scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env(CONTENT_DIR)/icon_sausd.png $env(CONTENT_DIR)/BTC.png $env(CONTENT_DIR)/ETH.png $env(REMOTE_USER)@$env(DROPLET_IP):$env(REMOTE_DIR)/
 expect "password:"
 send "$env(DROPLET_SSH_PASSWORD)\r"
 expect eof
